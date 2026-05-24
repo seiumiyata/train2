@@ -47,7 +47,7 @@
                 A-TRAIN 3D <span class="text-xs font-normal text-amber-200">ULTIMATE COUPLER</span>
             </div>
             <!-- RCI 都市開発需要インジケーター -->
-            <div class="hidden md:flex items-center space-x-3 bg-slate-950/80 px-3 py-1.5 rounded-lg border border-slate-800 text-xs">
+            <div class="hidden xl:flex items-center space-x-3 bg-slate-950/80 px-3 py-1.5 rounded-lg border border-slate-800 text-xs">
                 <span class="text-slate-400 font-bold">開発需要:</span>
                 <div class="flex flex-col space-y-1">
                     <div class="flex items-center space-x-1">
@@ -73,7 +73,7 @@
         </div>
 
         <!-- 各種資金、人口、ゲーム内時間HUD -->
-        <div class="flex items-center space-x-3 md:space-x-6 flex-wrap">
+        <div class="flex items-center space-x-3 flex-wrap">
             <!-- 資金 -->
             <div class="flex items-center space-x-2 bg-slate-950/80 px-3.5 py-1.5 rounded-lg border border-slate-800 shadow-inner">
                 <span class="text-xs text-emerald-400 font-bold">資金:</span>
@@ -92,6 +92,23 @@
             </div>
         </div>
 
+        <!-- 常時表示セーブデータ管理 (HUD埋込型) -->
+        <div class="flex items-center space-x-1.5 bg-slate-950/80 p-1.5 rounded-lg border border-slate-800 text-xs">
+            <button onclick="quickSave()" class="px-2.5 py-1.5 rounded bg-emerald-950/60 hover:bg-emerald-800 text-emerald-300 font-bold border border-emerald-800/50 transition-all flex items-center gap-1" title="ブラウザのメモリにクイックセーブ">
+                <span>💾</span>セーブ
+            </button>
+            <button onclick="quickLoad()" class="px-2.5 py-1.5 rounded bg-sky-950/60 hover:bg-sky-800 text-sky-300 font-bold border border-sky-800/50 transition-all flex items-center gap-1" title="最後にセーブしたデータをクイックロード">
+                <span>📂</span>ロード
+            </button>
+            <button onclick="exportSaveFile()" class="px-2.5 py-1.5 rounded bg-amber-950/60 hover:bg-amber-800 text-amber-300 font-bold border border-amber-800/50 transition-all flex items-center gap-1" title="PCへSAVファイルとしてダウンロード保存">
+                <span>📤</span>PC保存
+            </button>
+            <button onclick="document.getElementById('save-file-input').click()" class="px-2.5 py-1.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold border border-slate-700 transition-all flex items-center gap-1" title="保存したSAVファイルを読み込む">
+                <span>📥</span>読込
+            </button>
+            <input type="file" id="save-file-input" accept=".sav" class="hidden" onchange="importSaveFile(event)">
+        </div>
+
         <!-- 運行シミュレーション速度 -->
         <div class="flex items-center space-x-1 bg-slate-950/80 p-1 rounded-lg border border-slate-800">
             <button id="speed-0" class="px-2.5 py-1 rounded text-xs transition-all font-bold text-slate-400 hover:text-white" onclick="setSpeed(0)">一時停止</button>
@@ -102,7 +119,7 @@
     </div>
 
     <!-- 左操作パネル: ダイヤ編成、建築敷設ツール -->
-    <div class="absolute bottom-4 left-4 z-10 flex flex-col gap-3 w-80">
+    <div class="absolute bottom-4 left-4 z-10 flex flex-col gap-3 w-80 max-h-[80vh] overflow-y-auto pr-1">
         <!-- 列車編成・車両基地設定 -->
         <div id="train-config-panel" class="bg-slate-900/95 backdrop-blur-md border border-slate-800 rounded-xl p-4 shadow-2xl flex flex-col gap-2.5">
             <div class="flex justify-between items-center border-b border-slate-800 pb-1.5">
@@ -197,7 +214,7 @@
             </h3>
             <div id="news-feed" class="mt-2 h-20 overflow-y-auto text-xs text-slate-300 space-y-1.5 font-mono">
                 <div class="text-slate-500">[SYSTEM] 連結エッジ物理エンジン起動。極限までドリフトを解消しました。</div>
-                <div class="text-red-400">[警告] インフレ維持費が日々重くのしかかります。計画的な黒字化が必須です。</div>
+                <div class="text-red-400 font-semibold">[財務] 線路コスト・維持保守料を低価格化に再編しました。</div>
                 <div class="text-sky-300 font-semibold">[音響] 「車窓モード」時に、ガタンゴトンとリアルな走行ジョイント音が流れます！</div>
             </div>
         </div>
@@ -350,12 +367,12 @@
         // シンセサイザー音響
         let audioCtx = null;
 
-        // シビアな財務チューニング（低価格化調整）
+        // 財務チューニング（低価格化調整）
         const COSTS = {
-            auto_track: 40000,    // 線路1マス ¥40,000 (従来の3分の1)
-            station: 1500000,     // 駅新設 ¥1,500,000 (半額以下)
+            auto_track: 40000,    // 線路1マス ¥40,000
+            station: 1500000,     // 駅新設 ¥1,500,000
             spawn_train: 2500000, 
-            clear: 10000          // 撤去費 ¥10,000 (5分の1)
+            clear: 10000          // 撤去費 ¥10,000
         };
 
         // カメラパラメータ
@@ -498,16 +515,13 @@
             osc.stop(now + 0.25);
         }
 
-        // ガタンゴトン走行音（車窓モード限定シンセサイザー）
+        // ガタンゴトン走行音
         function playTrainJointSound() {
             initAudio();
             if (!audioCtx || followTrainIndex === -1) return;
             
             const now = audioCtx.currentTime;
-            
-            // カタン（1軸目）
             triggerTrackClick(now, 1.0);
-            // コトン（2軸目、わずかに遅れてトーンを低く設定）
             triggerTrackClick(now + 0.12, 0.85);
         }
 
@@ -992,6 +1006,290 @@
             }
         }
 
+        // --- セーブ ＆ ロード機能の実装 ---
+        function prepareSaveDataObject() {
+            // gridMapからシリアライズ可能な情報のみ抽出
+            const serializableGrid = [];
+            for (let x = 0; x < GRID_SIZE; x++) {
+                serializableGrid[x] = [];
+                for (let z = 0; z < GRID_SIZE; z++) {
+                    serializableGrid[x][z] = {
+                        type: gridMap[x][z].type
+                    };
+                }
+            }
+
+            // 建物情報のシリアライズ
+            const serializableBuildings = buildingsMap.map(b => ({
+                x: b.x,
+                z: b.z,
+                level: b.level
+            }));
+
+            // 列車情報のシリアライズ
+            const serializableTrains = trains.map(t => ({
+                id: t.id,
+                carCount: t.carCount,
+                capacityFactor: t.capacityFactor,
+                col: t.col,
+                row: t.row,
+                inDir: t.inDir,
+                outDir: t.outDir,
+                progress: t.progress,
+                speed: t.speed,
+                stationWaitTimer: t.stationWaitTimer,
+                historyBuffer: t.historyBuffer
+            }));
+
+            return {
+                funds,
+                bankLoan,
+                population,
+                mapSeed,
+                demandR,
+                demandC,
+                demandO,
+                totalBuiltCost,
+                totalRevenue,
+                totalMaintenance,
+                gameYear,
+                gameMonth,
+                gameDay,
+                gameHour,
+                gameMinute,
+                gridMap: serializableGrid,
+                buildingsMap: serializableBuildings,
+                trains: serializableTrains
+            };
+        }
+
+        function loadGameFromObject(data) {
+            if (!data) return false;
+
+            // 既存オブジェクトのクリーンアップ
+            clearExistingMapEntities();
+
+            // 基本パラメータを復元
+            funds = data.funds ?? 6000000;
+            bankLoan = data.bankLoan ?? 0;
+            population = data.population ?? 0;
+            mapSeed = data.mapSeed ?? 41304;
+            pseudoRandom = seedRandom(mapSeed);
+
+            demandR = data.demandR ?? 60;
+            demandC = data.demandC ?? 40;
+            demandO = data.demandO ?? 30;
+
+            totalBuiltCost = data.totalBuiltCost ?? 0;
+            totalRevenue = data.totalRevenue ?? 0;
+            totalMaintenance = data.totalMaintenance ?? 0;
+
+            gameYear = data.gameYear ?? 2026;
+            gameMonth = data.gameMonth ?? 5;
+            gameDay = data.gameDay ?? 1;
+            gameHour = data.gameHour ?? 9;
+            gameMinute = data.gameMinute ?? 0;
+
+            const sInput = document.getElementById('seed-input');
+            if (sInput) sInput.value = mapSeed;
+
+            // マップグリッドの復元と3Dオブジェクトの再構築
+            for (let x = 0; x < GRID_SIZE; x++) {
+                gridMap[x] = [];
+                for (let z = 0; z < GRID_SIZE; z++) {
+                    const savedTile = data.gridMap?.[x]?.[z];
+                    const type = savedTile ? savedTile.type : 'empty';
+                    gridMap[x][z] = { type: type, mesh: null, metadata: {} };
+
+                    const pos = getGridWorldCoords(x, z);
+                    if (type === 'water') {
+                        placeRiverTile(x, z);
+                    } else if (type === 'mountain') {
+                        placeMountainObstacle(x, z);
+                    } else if (type.startsWith('track_') || type.startsWith('curve_')) {
+                        const mesh = constructTrackProceduralMesh(type);
+                        mesh.position.set(pos.x, 0, pos.z);
+                        scene.add(mesh);
+                        gridMap[x][z].mesh = mesh;
+                    } else if (type.startsWith('station_')) {
+                        const mesh = constructStationProceduralMesh(type);
+                        mesh.position.set(pos.x, 0, pos.z);
+                        scene.add(mesh);
+                        gridMap[x][z].mesh = mesh;
+                    }
+                }
+            }
+
+            // 自然の木の再配置
+            for (let x = 0; x < GRID_SIZE; x++) {
+                for (let z = 0; z < GRID_SIZE; z++) {
+                    if (gridMap[x][z].type === 'empty') {
+                        const noiseVal = Math.cos(x * 0.1) * Math.sin(z * 0.1);
+                        if (noiseVal > 0.4 && pseudoRandom() > 0.2) {
+                            spawnNatureTree(x, z);
+                        }
+                    }
+                }
+            }
+
+            // 建物情報の復元
+            if (data.buildingsMap) {
+                data.buildingsMap.forEach(savedB => {
+                    const x = savedB.x;
+                    const z = savedB.z;
+                    const level = savedB.level;
+
+                    const structure = {
+                        x: x,
+                        z: z,
+                        level: level,
+                        mesh: buildHouseShapeMesh(level)
+                    };
+                    const pos = getGridWorldCoords(x, z);
+                    structure.mesh.position.set(pos.x, 0, pos.z);
+                    scene.add(structure.mesh);
+                    buildingsMap.push(structure);
+                    gridMap[x][z].metadata.hasBuilding = true;
+                });
+            }
+
+            // 列車情報の復元
+            if (data.trains) {
+                data.trains.forEach(savedT => {
+                    const spawnGroup = new THREE.Group();
+                    scene.add(spawnGroup);
+
+                    const carMeshes = [];
+                    // 機関車
+                    const engine = createEngineMesh();
+                    spawnGroup.add(engine);
+                    carMeshes.push(engine);
+
+                    // 客車
+                    for (let c = 1; c < savedT.carCount; c++) {
+                        const carColor = (c % 2 === 0) ? 0x1e3a8a : 0x0f172a; 
+                        const carriage = createCarriageMesh(carColor);
+                        spawnGroup.add(carriage);
+                        carMeshes.push(carriage);
+                    }
+
+                    const trainRecord = {
+                        id: savedT.id,
+                        spawnGroup: spawnGroup,
+                        carMeshes: carMeshes,
+                        carCount: savedT.carCount,
+                        capacityFactor: savedT.capacityFactor,
+                        col: savedT.col,
+                        row: savedT.row,
+                        inDir: savedT.inDir,
+                        outDir: savedT.outDir,
+                        progress: savedT.progress,
+                        speed: savedT.speed ?? 0.015,
+                        stationWaitTimer: savedT.stationWaitTimer ?? 0,
+                        historyBuffer: savedT.historyBuffer ?? []
+                    };
+
+                    // 履歴バッファ補正
+                    if (!trainRecord.historyBuffer || trainRecord.historyBuffer.length === 0) {
+                        trainRecord.historyBuffer = [];
+                        const tileType = gridMap[savedT.col]?.[savedT.row]?.type || 'track_h';
+                        const initPosState = getTilePathPosition(savedT.col, savedT.row, savedT.inDir, savedT.outDir, savedT.progress, tileType);
+                        for (let i = 0; i < 300; i++) {
+                            trainRecord.historyBuffer.push({
+                                x: initPosState.x,
+                                z: initPosState.z,
+                                angle: initPosState.yaw
+                            });
+                        }
+                    }
+
+                    trains.push(trainRecord);
+                });
+            }
+
+            // IDカウンターの同期
+            if (trains.length > 0) {
+                trainIdCounter = Math.max(...trains.map(t => t.id));
+            } else {
+                trainIdCounter = 0;
+            }
+
+            updateStatsUI();
+            updateDemandBars();
+            logNewsFeed("【データシステム】 セーブデータを復元しました。", "text-emerald-400");
+            return true;
+        }
+
+        // ブラウザへのクイックセーブ＆ロード
+        function quickSave() {
+            initAudio();
+            const data = prepareSaveDataObject();
+            localStorage.setItem('atrain_sim_3d_savestate', JSON.stringify(data));
+            logNewsFeed("【データシステム】 クイックセーブ完了（ブラウザ内保存）。", "text-emerald-400");
+            playSoundBuildChirp();
+        }
+
+        function quickLoad() {
+            initAudio();
+            const raw = localStorage.getItem('atrain_sim_3d_savestate');
+            if (!raw) {
+                logNewsFeed("【エラー】 保存されたデータが見つかりません。", "text-rose-400");
+                return;
+            }
+            try {
+                const data = JSON.parse(raw);
+                loadGameFromObject(data);
+                playSoundStationChime();
+            } catch (err) {
+                logNewsFeed("【エラー】 データ復元に失敗しました。", "text-rose-400");
+            }
+        }
+
+        // ローカルPCファイルへの書き出し＆インポート
+        function exportSaveFile() {
+            initAudio();
+            const data = prepareSaveDataObject();
+            const jsonString = JSON.stringify(data);
+            
+            const blob = new Blob([jsonString], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            
+            const ts = `${gameYear}${String(gameMonth).padStart(2, '0')}${String(gameDay).padStart(2, '0')}_${String(gameHour).padStart(2, '0')}${String(gameMinute).padStart(2, '0')}`;
+            a.download = `atrain_3d_save_${ts}.sav`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            logNewsFeed("【データシステム】 セーブファイル (.sav) をPCへ出力しました。", "text-emerald-400");
+            playSoundStationChime();
+        }
+
+        function importSaveFile(event) {
+            initAudio();
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    const success = loadGameFromObject(data);
+                    if (success) {
+                        playSoundStationChime();
+                    } else {
+                        logNewsFeed("【エラー】 非対応セーブデータ構造です。", "text-rose-400");
+                    }
+                } catch (err) {
+                    logNewsFeed("【エラー】 ファイル解析に失敗しました。", "text-rose-400");
+                }
+            };
+            reader.readAsText(file);
+            event.target.value = ''; // ファイルリセット
+        }
+
         function onMouseUp(event) {
             if (event.button === 0 && isDrawingTrack) {
                 finishSmartDragTrack();
@@ -1047,7 +1345,7 @@
             }
         }
 
-        // デバッグ対策: 再計算時の個別レールタイプ動的アップデート関数
+        // 再計算時の個別レールタイプ動的アップデート
         function updateTrackTileTypeOnly(x, z, finalType) {
             const tile = gridMap[x][z];
             if (tile.mesh) {
@@ -1061,7 +1359,7 @@
             tile.mesh = newMesh;
         }
 
-        // --- スマートドラッグ線路敷設システムの実装 ---
+        // --- スマートドラッグ線路敷設システム ---
         function startSmartDragTrack(col, row) {
             const tile = gridMap[col][row];
             if (tile.type !== 'empty') return;
@@ -1079,7 +1377,6 @@
             if (!isDrawingTrack) return;
             if (col === lastDragCol && row === lastDragRow) return;
 
-            // 隣接判定
             const dist = Math.abs(col - lastDragCol) + Math.abs(row - lastDragRow);
             if (dist !== 1) return;
 
@@ -1134,7 +1431,7 @@
             tile.mesh = mesh;
         }
 
-        // --- 駅新設・撤去アクションの実装 ---
+        // --- 駅新設・撤去アクション ---
         function executeStationOrOtherAction(col, row) {
             initAudio();
             const tile = gridMap[col][row];
@@ -1472,7 +1769,6 @@
                 historyBuffer: [] 
             };
 
-            // スポーン時の瞬間的な挙動防止用にバッファを先行充填
             const initPosState = getTilePathPosition(col, row, startInDir, startOutDir, 0, tile.type);
             for (let i = 0; i < 300; i++) {
                 trainRecord.historyBuffer.push({
@@ -1494,7 +1790,7 @@
             { dCol: -1, dRow: 0, angleY: Math.PI }      // 3: West
         ];
 
-        // --- 精密エッジ連結物理 ＆ ガタンゴトン効果音更新 ---
+        // --- 精密エッジ連結物理 ＆ 効果音更新 ---
         function handleRunningTrainsPhysics() {
             if (simSpeed === 0) return;
 
@@ -1507,7 +1803,6 @@
                         continue; 
                     }
 
-                    // 1Tick進める
                     t.progress += t.speed;
 
                     // 車窓効果音ギミック (progressに応じたガタンゴトン同期)
@@ -1520,7 +1815,6 @@
 
                     const currentTile = gridMap[t.col]?.[t.row];
                     
-                    // デバッグ対策: 線路の撤去・改築時等に発生し得る列車脱線ぬるぽクラッシュ対策
                     if (!currentTile || !isTrackOrStation(currentTile.type)) {
                         scene.remove(t.spawnGroup);
                         trains.splice(i, 1);
@@ -1532,19 +1826,16 @@
                         continue;
                     }
                     
-                    // 円弧カーブ、直線の形状に沿って完璧にミリ単位トレース
                     const posState = getTilePathPosition(t.col, t.row, t.inDir, t.outDir, Math.min(1.0, t.progress), currentTile.type);
 
                     t.carMeshes[0].position.set(posState.x, 0, posState.z);
                     t.carMeshes[0].rotation.y = posState.yaw;
 
-                    // 履歴バッファに最先端情報をプッシュ
                     t.historyBuffer.unshift({ x: posState.x, z: posState.z, angle: posState.yaw });
                     if (t.historyBuffer.length > 400) {
                         t.historyBuffer.pop();
                     }
 
-                    // 客車追従処理 (フレームギャップ = 16)
                     const frameGap = 16; 
                     for (let c = 1; c < t.carCount; c++) {
                         const carriageMesh = t.carMeshes[c];
@@ -1557,17 +1848,14 @@
                         }
                     }
 
-                    // 1マス境界（エッジ）へ到達
                     if (t.progress >= 1.0) {
                         t.progress = 0;
 
                         // 駅での停車判定
                         if (currentTile.type.startsWith('station_')) {
                             const countLocalCivs = queryCivDensityNear(t.col, t.row, 5);
-                            // 基本運賃係数を 35 -> 150 に上方修正
                             const baseFare = (countLocalCivs * 150) + (pseudoRandom() * 4000 + 1000); 
 
-                            // 運行ダイヤ：夜間ダイヤ（20時〜6時）は運賃20%減（0.8倍）に変更（以前の50%減から大幅緩和）
                             const isNightTime = (gameHour >= 20 || gameHour < 6);
                             const diaMultiplier = isNightTime ? 0.8 : 1.0;
 
@@ -1587,10 +1875,9 @@
                                 updateDemandBars();
                             }
 
-                            t.stationWaitTimer = 35; // 停車時間
+                            t.stationWaitTimer = 35; 
                         }
 
-                        // 進行方向への隣接判定
                         const offset = DIR_OFFSETS[t.outDir];
                         const nextCol = t.col + offset.dCol;
                         const nextRow = t.row + offset.dRow;
@@ -1634,7 +1921,6 @@
             return false;
         }
 
-        // 折り返しアライメント処理
         function turnTrainAround(train) {
             const temp = train.inDir;
             train.inDir = train.outDir;
@@ -1948,14 +2234,10 @@
 
             let trainMaintenanceSum = 0;
             trains.forEach(t => {
-                // 運行中の列車維持費を大幅削減 (22000 + t.carCount * 6500) -> (5000 + t.carCount * 1500)
                 trainMaintenanceSum += 5000 + (t.carCount * 1500);
             });
 
-            // 借入金に対する利息を年利2%に大幅引き下げ
             const dailyLoanInterest = Math.floor(bankLoan * (0.02 / 360));
-
-            // インフラマス当たりの日次保守費を ¥4,500 から ¥1,000 へ引き下げ
             const activeMaintenance = (counts * 1000) + trainMaintenanceSum + dailyLoanInterest;
             
             funds -= activeMaintenance;
@@ -1966,7 +2248,6 @@
                 logNewsFeed("【財務】 日次固定インフラ維持費 ＆ 借入金利息: -¥" + activeMaintenance.toLocaleString(), "text-rose-400");
             }
 
-            // 破産ゲームオーバー処理
             if (funds < -100000) {
                 const overlay = document.getElementById('gameover-overlay');
                 if (overlay) overlay.classList.remove('hidden');
@@ -2027,7 +2308,7 @@
             feed.prepend(element);
         }
 
-        // --- プロシージャル地形生成の要素関数定義 ---
+        // --- 地形構成の描写ヘルパー ---
         function placeRiverTile(x, z) {
             gridMap[x][z].type = 'water';
             const waterGeo = new THREE.BoxGeometry(TILE_SIZE, 0.1, TILE_SIZE);
