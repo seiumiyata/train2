@@ -1,0 +1,2254 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>A-Train Sim 3D - Ultimate Coupler Edition</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Three.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- Inter & JP Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=M+PLUS+1p:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', 'M PLUS 1p', sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+            overflow: hidden;
+        }
+        /* スクロールバーのデザイン */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.6);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(148, 163, 184, 0.3);
+            border-radius: 3px;
+        }
+        /* アクティブツールのグローアニメーション */
+        .glow-active {
+            animation: pulse-glow 1.5s infinite;
+        }
+        @keyframes pulse-glow {
+            0%, 100% { border-color: rgba(59, 130, 246, 1); box-shadow: 0 0 12px rgba(59, 130, 246, 0.6); }
+            50% { border-color: rgba(147, 197, 253, 1); box-shadow: 0 0 20px rgba(147, 197, 253, 0.2); }
+        }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 w-screen h-screen relative">
+
+    <!-- 上部 HUD 情報表示バー -->
+    <div class="absolute top-0 left-0 right-0 z-10 bg-slate-900/90 backdrop-blur-md border-b border-slate-800 px-6 py-3 flex flex-wrap items-center justify-between gap-4 shadow-lg">
+        <div class="flex items-center space-x-4">
+            <div class="bg-gradient-to-r from-red-600 to-amber-600 text-white font-bold px-3 py-1.5 rounded-lg text-sm tracking-wider shadow-md border border-red-400/20">
+                A-TRAIN 3D <span class="text-xs font-normal text-amber-200">ULTIMATE COUPLER</span>
+            </div>
+            <!-- RCI 都市開発需要インジケーター -->
+            <div class="hidden md:flex items-center space-x-3 bg-slate-950/80 px-3 py-1.5 rounded-lg border border-slate-800 text-xs">
+                <span class="text-slate-400 font-bold">開発需要:</span>
+                <div class="flex flex-col space-y-1">
+                    <div class="flex items-center space-x-1">
+                        <span class="text-[9px] text-emerald-400 font-bold">住宅</span>
+                        <div class="w-16 h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                            <div id="demand-r" class="h-full bg-emerald-500" style="width: 50%"></div>
+                        </div>
+                    </div>
+                    <div class="flex items-center space-x-1">
+                        <span class="text-[9px] text-sky-400 font-bold">商業</span>
+                        <div class="w-16 h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                            <div id="demand-c" class="h-full bg-sky-500" style="width: 50%"></div>
+                        </div>
+                    </div>
+                    <div class="flex items-center space-x-1">
+                        <span class="text-[9px] text-yellow-400 font-bold">業務</span>
+                        <div class="w-16 h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                            <div id="demand-o" class="h-full bg-yellow-500" style="width: 50%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 各種資金、人口、ゲーム内時間HUD -->
+        <div class="flex items-center space-x-3 md:space-x-6 flex-wrap">
+            <!-- 資金 -->
+            <div class="flex items-center space-x-2 bg-slate-950/80 px-3.5 py-1.5 rounded-lg border border-slate-800 shadow-inner">
+                <span class="text-xs text-emerald-400 font-bold">資金:</span>
+                <span id="stat-funds" class="font-mono text-base font-bold text-emerald-400">¥6,000,000</span>
+            </div>
+            <!-- 人口 -->
+            <div class="flex items-center space-x-2 bg-slate-950/80 px-3.5 py-1.5 rounded-lg border border-slate-800 shadow-inner">
+                <span class="text-xs text-sky-400 font-bold">人口:</span>
+                <span id="stat-pop" class="font-mono text-base font-bold text-sky-300">0 人</span>
+            </div>
+            <!-- 日付と時刻 -->
+            <div class="flex items-center space-x-3 bg-slate-950/80 px-3.5 py-1.5 rounded-lg border border-slate-800 shadow-inner">
+                <span id="stat-date" class="font-bold text-slate-300 text-xs sm:text-sm">2026年 5月 1日</span>
+                <div class="h-4 w-px bg-slate-800"></div>
+                <span id="stat-time" class="font-mono text-amber-400 font-bold text-xs sm:text-sm">09:00</span>
+            </div>
+        </div>
+
+        <!-- 運行シミュレーション速度 -->
+        <div class="flex items-center space-x-1 bg-slate-950/80 p-1 rounded-lg border border-slate-800">
+            <button id="speed-0" class="px-2.5 py-1 rounded text-xs transition-all font-bold text-slate-400 hover:text-white" onclick="setSpeed(0)">一時停止</button>
+            <button id="speed-1" class="px-2.5 py-1 rounded text-xs transition-all font-bold bg-blue-600 text-white" onclick="setSpeed(1)">1x</button>
+            <button id="speed-2" class="px-2.5 py-1 rounded text-xs transition-all font-bold text-slate-400 hover:text-white" onclick="setSpeed(3)">3x</button>
+        </div>
+    </div>
+
+    <!-- 左操作パネル: ダイヤ編成、建築敷設ツール -->
+    <div class="absolute bottom-4 left-4 z-10 flex flex-col gap-3 w-80">
+        <!-- 列車編成・車両基地設定 -->
+        <div id="train-config-panel" class="bg-slate-900/95 backdrop-blur-md border border-slate-800 rounded-xl p-4 shadow-2xl flex flex-col gap-2.5">
+            <div class="flex justify-between items-center border-b border-slate-800 pb-1.5">
+                <h3 class="text-xs font-bold tracking-wider text-slate-400">新造車両基地</h3>
+                <span class="text-[9px] bg-red-500/10 text-red-300 px-1.5 py-0.5 rounded border border-red-500/20">ダイヤ連動</span>
+            </div>
+            <div class="text-[11px] text-slate-400">新しく購入・配置する列車の編成両数を選択:</div>
+            <div class="grid grid-cols-4 gap-1">
+                <button onclick="setTrainCars(1)" id="btn-cars-1" class="py-1.5 rounded bg-slate-800 text-xs font-bold text-slate-300 border border-slate-700 hover:bg-slate-700 transition-all">1両</button>
+                <button onclick="setTrainCars(2)" id="btn-cars-2" class="py-1.5 rounded bg-slate-800 text-xs font-bold text-slate-300 border border-slate-700 hover:bg-slate-700 transition-all">2両</button>
+                <button onclick="setTrainCars(3)" id="btn-cars-3" class="py-1.5 rounded bg-blue-600 text-xs font-bold text-white border border-blue-500 hover:bg-blue-500 transition-all">3両</button>
+                <button onclick="setTrainCars(4)" id="btn-cars-4" class="py-1.5 rounded bg-slate-800 text-xs font-bold text-slate-300 border border-slate-700 hover:bg-slate-700 transition-all">4両</button>
+            </div>
+            <div class="flex justify-between text-[11px] font-mono mt-1">
+                <span class="text-slate-400">車両価格:</span>
+                <span id="lbl-train-cost" class="text-emerald-400 font-bold">¥4,500,000</span>
+            </div>
+            <div class="flex justify-between text-[11px] font-mono">
+                <span class="text-slate-400">乗車許容量:</span>
+                <span id="lbl-train-capacity" class="text-sky-400 font-bold">中（運賃 2.5倍）</span>
+            </div>
+        </div>
+
+        <!-- 敷設工事セクション -->
+        <div class="bg-slate-900/95 backdrop-blur-md border border-slate-800 rounded-xl p-4 shadow-2xl flex flex-col gap-3">
+            <div class="flex justify-between items-center border-b border-slate-800 pb-2">
+                <h3 class="text-xs font-bold tracking-wider text-slate-400">敷設工事（40x40グリッド）</h3>
+                <span class="text-[10px] bg-emerald-500/10 text-emerald-400 px-1.5 py-0.5 rounded border border-emerald-500/20">精密接続</span>
+            </div>
+            
+            <!-- スマート自動線路敷設 -->
+            <button id="tool-auto_track" onclick="selectTool('auto_track')" class="flex flex-col items-center justify-center p-3.5 rounded-xl bg-gradient-to-b from-blue-900/40 to-blue-950/40 border border-blue-700 hover:border-blue-500 hover:bg-blue-900/30 transition-all text-center">
+                <span class="text-2xl mb-1">🛠️✨</span>
+                <span class="text-xs font-bold text-blue-300">スマート自動線路敷設</span>
+                <span class="text-[10px] text-slate-400 mt-1">ドラッグで精密な円弧を描いてレールが自動接続します。</span>
+                <span class="text-[10px] text-emerald-400 font-mono font-bold mt-0.5">1マス: ¥120,000</span>
+            </button>
+
+            <!-- 建築メニュー -->
+            <div class="grid grid-cols-3 gap-2 mt-1">
+                <!-- スマート駅建設 -->
+                <button id="tool-station" onclick="selectTool('station')" class="col-span-3 flex flex-col items-center justify-center p-3 rounded-lg bg-slate-850 border border-slate-800 hover:bg-slate-800 transition-all text-center">
+                    <span class="text-xl mb-0.5">🚉✨</span>
+                    <span class="text-xs font-bold text-slate-100">駅を新設</span>
+                    <span class="text-[9px] text-slate-400">線路上に直接重ねるだけで、自動接続アライメント！</span>
+                    <span class="text-[9px] text-emerald-400 font-mono mt-0.5">¥3,500,000</span>
+                </button>
+
+                <!-- 列車を線路に配置 -->
+                <button id="tool-spawn_train" onclick="selectTool('spawn_train')" class="col-span-2 flex flex-col items-center justify-center p-2 rounded-lg bg-amber-950/30 border border-amber-800 hover:bg-amber-900/40 transition-all text-center text-amber-300">
+                    <span class="text-lg mb-0.5">🚋💨</span>
+                    <span class="text-xs font-semibold">列車を配置</span>
+                    <span class="text-[9px] text-amber-400 font-mono mt-0.5" id="lbl-spawn-btn-cost">¥4,500,000</span>
+                </button>
+                <!-- 撤去ブルドーザー -->
+                <button id="tool-clear" onclick="selectTool('clear')" class="col-span-1 flex flex-col items-center justify-center p-2 rounded-lg bg-rose-950/30 border border-rose-950 hover:bg-rose-900/40 transition-all text-center text-rose-300">
+                    <span class="text-lg mb-0.5">🚜</span>
+                    <span class="text-xs font-semibold">撤去</span>
+                    <span class="text-[9px] text-rose-400 font-mono mt-0.5">¥50k</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- 視点・マップコントロール -->
+        <div class="bg-slate-900/95 backdrop-blur-md border border-slate-800 rounded-xl p-3 shadow-2xl flex flex-col gap-2">
+            <h3 class="text-[11px] font-bold tracking-wider text-slate-400 border-b border-slate-800 pb-1.5">カメラ・地形シード</h3>
+            <div class="grid grid-cols-3 gap-1.5 text-xs">
+                <button onclick="setCameraView('iso')" class="bg-slate-800 hover:bg-slate-700 py-1.5 rounded text-center font-semibold text-slate-200">クォーター</button>
+                <button onclick="toggleFollowCamera()" id="btn-follow-cam" class="bg-slate-800 hover:bg-slate-700 py-1.5 rounded text-center font-semibold text-slate-200 flex items-center justify-center gap-1">
+                    <span>🎥</span> <span id="follow-status">車窓</span>
+                </button>
+                <button onclick="resetCamera()" class="bg-slate-800 hover:bg-slate-700 py-1.5 rounded text-center font-semibold text-slate-200">全体図</button>
+            </div>
+            <!-- 地形シード生成 -->
+            <div class="flex items-center space-x-2 mt-1 border-t border-slate-800 pt-1.5">
+                <span class="text-[10px] text-slate-400">SEED:</span>
+                <input type="number" id="seed-input" value="41304" class="w-20 bg-slate-950 border border-slate-800 text-[10px] text-center px-1 py-0.5 rounded text-amber-400 font-mono">
+                <button onclick="regenerateWithInputSeed()" class="bg-slate-800 hover:bg-amber-600 hover:text-white transition-all text-[10px] px-2 py-0.5 rounded text-slate-300 font-bold flex-1">
+                    地形再構築
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 右操作パネル: ログ、銀行、財務報告書 -->
+    <div class="absolute bottom-4 right-4 z-10 w-80 flex flex-col gap-3">
+        <!-- 運行情報フィード -->
+        <div class="bg-slate-900/95 backdrop-blur-md border border-slate-800 rounded-xl p-4 shadow-2xl">
+            <h3 class="text-xs font-bold tracking-wider text-slate-400 border-b border-slate-800 pb-2 flex justify-between items-center">
+                <span>運行状況・都市開発情報</span>
+                <span class="inline-block w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+            </h3>
+            <div id="news-feed" class="mt-2 h-20 overflow-y-auto text-xs text-slate-300 space-y-1.5 font-mono">
+                <div class="text-slate-500">[SYSTEM] 連結エッジ物理エンジン起動。極限までドリフトを解消しました。</div>
+                <div class="text-red-400">[警告] インフレ維持費が日々重くのしかかります。計画的な黒字化が必須です。</div>
+                <div class="text-sky-300 font-semibold">[音響] 「車窓モード」時に、ガタンゴトンとリアルな走行ジョイント音が流れます！</div>
+            </div>
+        </div>
+
+        <!-- 帝国銀行・資金調達窓口 -->
+        <div class="bg-slate-900/95 backdrop-blur-md border border-slate-800 rounded-xl p-4 shadow-2xl flex flex-col gap-2.5">
+            <div class="flex justify-between items-center border-b border-slate-800 pb-1.5">
+                <h3 class="text-xs font-bold tracking-wider text-slate-400">帝国銀行 融資窓口</h3>
+                <span class="text-[9px] bg-red-500/10 text-red-400 px-1.5 py-0.5 rounded border border-red-500/20">金利年5%</span>
+            </div>
+            <div class="flex justify-between text-xs font-mono">
+                <span class="text-slate-400">現在の借入総額:</span>
+                <span id="stat-loan" class="text-red-400 font-bold">¥0</span>
+            </div>
+            <div class="grid grid-cols-2 gap-2 mt-1">
+                <button onclick="borrowLoan()" class="bg-red-950/40 hover:bg-red-900/40 border border-red-800 py-1.5 rounded text-xs font-bold text-red-300 transition-all">
+                    ¥5,000,000 借入
+                </button>
+                <button onclick="repayLoan()" class="bg-emerald-950/40 hover:bg-emerald-900/40 border border-emerald-800 py-1.5 rounded text-xs font-bold text-emerald-300 transition-all">
+                    ¥5,000,000 返済
+                </button>
+            </div>
+        </div>
+
+        <!-- 財務収支報告書（決算ダッシュボード） -->
+        <div class="bg-slate-900/95 backdrop-blur-md border border-slate-800 rounded-xl p-4 shadow-2xl flex flex-col gap-2.5">
+            <h3 class="text-xs font-bold tracking-wider text-slate-400 border-b border-slate-800 pb-2">財務収支報告書</h3>
+            <div class="grid grid-cols-2 gap-1.5 text-xs font-mono">
+                <div class="text-slate-400">運輸料金収入:</div>
+                <div id="finance-fare" class="text-right text-emerald-400">+¥0</div>
+                <div class="text-slate-400">インフレ工事投資:</div>
+                <div id="finance-build" class="text-right text-rose-400">-¥0</div>
+                <div class="text-slate-400">利息・固定資産維持費:</div>
+                <div id="finance-tax" class="text-right text-rose-400">-¥0</div>
+                <div class="h-px bg-slate-800 col-span-2 my-1"></div>
+                <div class="text-slate-300 font-bold">累積純損益:</div>
+                <div id="finance-total" class="text-right text-white font-bold">¥0</div>
+            </div>
+            
+            <button onclick="triggerSoundTest()" class="text-[11px] bg-slate-800 hover:bg-slate-700 py-1.5 rounded text-center text-slate-400 border border-slate-700 transition-colors">
+                🔊 踏切警報 ＆ 出発合図テスト
+            </button>
+        </div>
+    </div>
+
+    <!-- 経営倒産通知オーバーレイ -->
+    <div id="gameover-overlay" class="absolute inset-0 bg-red-950/90 backdrop-blur-md z-40 hidden flex-col items-center justify-center gap-4">
+        <h1 class="text-4xl md:text-6xl font-extrabold text-red-500 tracking-widest animate-pulse">REVENUE INSOLVENCY</h1>
+        <p class="text-red-200 text-sm max-w-md text-center leading-relaxed">
+            保守費および銀行借入の支払い不能により、貴社の鉄道会社は不渡りを出し倒産しました。
+        </p>
+        <button onclick="restartGame()" class="mt-4 px-6 py-3 bg-red-600 hover:bg-red-500 text-white font-bold rounded-xl transition-all shadow-xl border border-red-400">
+            別シード値で会社を再設立する
+        </button>
+    </div>
+
+    <!-- ローディングスクリーン -->
+    <div id="loading-overlay" class="absolute inset-0 bg-slate-950 z-50 flex flex-col items-center justify-center gap-4 transition-all duration-700">
+        <div class="flex space-x-2">
+            <div class="w-4 h-4 bg-red-600 rounded-full animate-bounce" style="animation-delay: 0.1s"></div>
+            <div class="w-4 h-4 bg-amber-500 rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
+            <div class="w-4 h-4 bg-yellow-400 rounded-full animate-bounce" style="animation-delay: 0.3s"></div>
+        </div>
+        <p class="text-slate-400 text-xs font-mono tracking-widest animate-pulse">A-TRAIN 3D ENGINE LOADING...</p>
+    </div>
+
+    <!-- 3Dレンダリング空間 -->
+    <div id="canvas-container" class="w-full h-full"></div>
+
+    <script>
+        // --- 40x40 マップグリッド設計値 ---
+        let GRID_SIZE = 40; 
+        const TILE_SIZE = 4;
+        const MAP_RADIUS = (GRID_SIZE * TILE_SIZE) / 2;
+
+        const COLORS = {
+            grass: 0x3b6623,
+            grid: 0x487a2d,
+            track: 0x737373,
+            wood: 0x422615,
+            station: 0x27272a,
+            sky_day: 0xa5f3fc,
+            sky_sunset: 0xea580c,
+            sky_night: 0x030712,
+            water: 0x0284c7,
+            mountain: 0x1f2937
+        };
+
+        // 擬似乱数 LCG生成器（起動時の実行順エラーを防ぐため最上部に配置）
+        function seedRandom(seed) {
+            let m = 0x80000000, a = 1103515245, c = 12345;
+            let state = seed ? seed : Math.floor(Math.random() * (m - 1));
+            return function() {
+                state = (a * state + c) % m;
+                return state / (m - 1);
+            }
+        }
+
+        // --- ゲーム状態管理 ---
+        let funds = 6000000;         // 初期資金: ¥6,000,000
+        let bankLoan = 0;           // 借入
+        let population = 0;
+        let selectedTool = 'auto_track'; 
+        let simSpeed = 1;
+        let mapSeed = 41304;        
+        let pseudoRandom = seedRandom(mapSeed);
+
+        // RCI需要値 (0 - 100)
+        let demandR = 60;
+        let demandC = 40;
+        let demandO = 30;
+
+        // 車両購入プリセット
+        let configTrainCars = 3; 
+        const TRAIN_PRESETS = {
+            1: { cost: 2000000, capacityLabel: "極小（運賃 1.0倍）", factor: 1.0 },
+            2: { cost: 3500000, capacityLabel: "小（運賃 1.8倍）", factor: 1.8 },
+            3: { cost: 4500000, capacityLabel: "中（運賃 2.5倍）", factor: 2.5 },
+            4: { cost: 5800000, capacityLabel: "大（運賃 3.4倍）", factor: 3.4 }
+        };
+
+        // 財務累計
+        let totalBuiltCost = 0;
+        let totalRevenue = 0;
+        let totalMaintenance = 0;
+
+        // 時間ダイヤ
+        let gameYear = 2026;
+        let gameMonth = 5;
+        let gameDay = 1;
+        let gameHour = 9;
+        let gameMinute = 0;
+
+        // マップ構造データ
+        let gridMap = [];
+        let buildingsMap = []; 
+
+        // ThreeJS要素
+        let scene, camera, renderer, shadowLight, ambientLight, helperPlane;
+        let container;
+        let raycaster = new THREE.Raycaster();
+        let mouse = new THREE.Vector2();
+        let gridCursorMesh;
+
+        // 列車追従管理
+        let trains = [];
+        let trainIdCounter = 0;
+        let followTrainIndex = -1;
+
+        // シンセサイザー音響
+        let audioCtx = null;
+
+        // シビアな財務チューニング
+        const COSTS = {
+            auto_track: 120000,   // 線路1マス ¥120,000
+            station: 3500000,     // 駅新設 ¥3,500,000
+            spawn_train: 4500000, 
+            clear: 50000          // 撤去費
+        };
+
+        // カメラパラメータ
+        let isDraggingCamera = false;
+        let previousMousePosition = { x: 0, y: 0 };
+        let cameraRadius = 110; 
+        let cameraAzimuth = Math.PI / 4; 
+        let cameraElevation = Math.PI / 5.5;
+
+        // 線路ドラッグ敷設管理
+        let isDrawingTrack = false;
+        let dragPath = []; 
+        let lastDragCol = -1;
+        let lastDragRow = -1;
+
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+
+        // シンセ音：警笛音
+        function playSoundHorn() {
+            initAudio();
+            if (!audioCtx) return;
+            const now = audioCtx.currentTime;
+            const osc1 = audioCtx.createOscillator();
+            const osc2 = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+
+            osc1.type = 'sawtooth';
+            osc1.frequency.setValueAtTime(330, now); 
+            osc1.frequency.exponentialRampToValueAtTime(320, now + 0.6);
+
+            osc2.type = 'triangle';
+            osc2.frequency.setValueAtTime(440, now); 
+            osc2.frequency.exponentialRampToValueAtTime(430, now + 0.6);
+
+            gain.gain.setValueAtTime(0, now);
+            gain.gain.linearRampToValueAtTime(0.12, now + 0.05);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.6);
+
+            osc1.connect(gain);
+            osc2.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            osc1.start(now);
+            osc2.start(now);
+            osc1.stop(now + 0.6);
+            osc2.stop(now + 0.6);
+        }
+
+        // 工事音
+        function playSoundBuildChirp() {
+            initAudio();
+            if (!audioCtx) return;
+            const now = audioCtx.currentTime;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(850, now);
+            osc.frequency.exponentialRampToValueAtTime(1700, now + 0.08);
+
+            gain.gain.setValueAtTime(0.06, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start(now);
+            osc.stop(now + 0.08);
+        }
+
+        // 撤去・キャンセル音
+        function playSoundUndoChirp() {
+            initAudio();
+            if (!audioCtx) return;
+            const now = audioCtx.currentTime;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(1100, now);
+            osc.frequency.exponentialRampToValueAtTime(350, now + 0.1);
+
+            gain.gain.setValueAtTime(0.06, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start(now);
+            osc.stop(now + 0.11);
+        }
+
+        // 発車メロディ
+        function playSoundStationChime() {
+            initAudio();
+            if (!audioCtx) return;
+            const now = audioCtx.currentTime;
+            const notes = [523.25, 659.25, 783.99, 1046.50]; 
+            
+            notes.forEach((freq, idx) => {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(freq, now + idx * 0.12);
+                
+                gain.gain.setValueAtTime(0, now + idx * 0.12);
+                gain.gain.linearRampToValueAtTime(0.08, now + idx * 0.12 + 0.02);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.12 + 0.4);
+                
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start(now + idx * 0.12);
+                osc.stop(now + idx * 0.12 + 0.4);
+            });
+        }
+
+        // 踏切警報
+        function playSoundCrossingBell() {
+            initAudio();
+            if (!audioCtx) return;
+            const now = audioCtx.currentTime;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(1450, now);
+
+            gain.gain.setValueAtTime(0.1, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start(now);
+            osc.stop(now + 0.25);
+        }
+
+        // ガタンゴトン走行音（車窓モード限定シンセサイザー）
+        function playTrainJointSound() {
+            initAudio();
+            if (!audioCtx || followTrainIndex === -1) return;
+            
+            const now = audioCtx.currentTime;
+            
+            // カタン（1軸目）
+            triggerTrackClick(now, 1.0);
+            // コトン（2軸目、わずかに遅れてトーンを低く設定）
+            triggerTrackClick(now + 0.12, 0.85);
+        }
+
+        function triggerTrackClick(time, pitchScale) {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(80 * pitchScale, time);
+            osc.frequency.exponentialRampToValueAtTime(10, time + 0.08);
+            
+            gain.gain.setValueAtTime(0.06, time);
+            gain.gain.exponentialRampToValueAtTime(0.001, time + 0.08);
+            
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start(time);
+            osc.stop(time + 0.09);
+        }
+
+        function triggerSoundTest() {
+            playSoundHorn();
+            setTimeout(playSoundStationChime, 600);
+            setTimeout(playSoundCrossingBell, 1400);
+            setTimeout(playSoundCrossingBell, 1850);
+        }
+
+        function getOppositeDir(dir) {
+            return (dir + 2) % 4;
+        }
+
+        function getMovementDirection(colA, rowA, colB, rowB) {
+            if (colB - colA === 1 && rowB - rowA === 0) return 1; // East
+            if (colB - colA === -1 && rowB - rowA === 0) return 3; // West
+            if (colB - colA === 0 && rowB - rowA === 1) return 2; // South
+            if (colB - colA === 0 && rowB - rowA === -1) return 0; // North
+            return null;
+        }
+
+        function isTrackOrStation(type) {
+            if (!type) return false;
+            return type.startsWith('track_') || type.startsWith('curve_') || type.startsWith('station_');
+        }
+
+        function getTrackTypeFromDirs(dir1, dir2) {
+            const d1 = Math.min(dir1, dir2);
+            const d2 = Math.max(dir1, dir2);
+
+            if (d1 === 1 && d2 === 3) return 'track_h'; 
+            if (d1 === 0 && d2 === 2) return 'track_v'; 
+            if (d1 === 0 && d2 === 1) return 'curve_ne'; 
+            if (d1 === 1 && d2 === 2) return 'curve_se'; 
+            if (d1 === 2 && d2 === 3) return 'curve_sw'; 
+            if (d1 === 0 && d2 === 3) return 'curve_nw'; 
+            return 'track_h'; 
+        }
+
+        // 進行方向に応じた退出エッジ・アライメント
+        function getOutDir(tileType, inDir) {
+            if (tileType === 'track_h' || tileType === 'station_h') {
+                return (inDir === 3) ? 1 : 3; 
+            }
+            if (tileType === 'track_v' || tileType === 'station_v') {
+                return (inDir === 0) ? 2 : 0; 
+            }
+            if (tileType === 'curve_ne') {
+                return (inDir === 0) ? 1 : 0; 
+            }
+            if (tileType === 'curve_se') {
+                return (inDir === 1) ? 2 : 1; 
+            }
+            if (tileType === 'curve_sw') {
+                return (inDir === 2) ? 3 : 2; 
+            }
+            if (tileType === 'curve_nw') {
+                return (inDir === 3) ? 0 : 3; 
+            }
+            return getOppositeDir(inDir); 
+        }
+
+        // --- 鉄道工学幾何：精密エッジ接続＆円弧補間エンジン ---
+        function getTilePathPosition(col, row, inDir, outDir, progress, tileType) {
+            const worldPos = getGridWorldCoords(col, row);
+            let localX = 0;
+            let localZ = 0;
+            let yaw = 0;
+
+            // 直線（水平）
+            if (tileType === 'track_h' || tileType === 'station_h') {
+                if (inDir === 3 && outDir === 1) { // 西 -> 東
+                    localX = -2.0 + 4.0 * progress;
+                    localZ = 0;
+                    yaw = 0;
+                } else { // 東 -> 西
+                    localX = 2.0 - 4.0 * progress;
+                    localZ = 0;
+                    yaw = Math.PI;
+                }
+            }
+            // 直線（垂直）
+            else if (tileType === 'track_v' || tileType === 'station_v') {
+                if (inDir === 0 && outDir === 2) { // 北 -> 南
+                    localX = 0;
+                    localZ = -2.0 + 4.0 * progress;
+                    yaw = Math.PI / 2;
+                } else { // 南 -> 北
+                    localX = 0;
+                    localZ = 2.0 - 4.0 * progress;
+                    yaw = -Math.PI / 2;
+                }
+            }
+            // 曲線 NE
+            else if (tileType === 'curve_ne') {
+                const cx = 2.0, cz = -2.0, R = 2.0;
+                if (inDir === 0 && outDir === 1) { // 北 -> 東
+                    const theta = Math.PI - (Math.PI / 2) * progress;
+                    localX = cx + R * Math.cos(theta);
+                    localZ = cz + R * Math.sin(theta);
+                    yaw = theta - Math.PI / 2;
+                } else { // 東 -> 北
+                    const theta = Math.PI / 2 + (Math.PI / 2) * progress;
+                    localX = cx + R * Math.cos(theta);
+                    localZ = cz + R * Math.sin(theta);
+                    yaw = theta + Math.PI / 2;
+                }
+            }
+            // 曲線 SE
+            else if (tileType === 'curve_se') {
+                const cx = 2.0, cz = 2.0, R = 2.0;
+                if (inDir === 1 && outDir === 2) { // 東 -> 南
+                    const theta = 1.5 * Math.PI - (Math.PI / 2) * progress;
+                    localX = cx + R * Math.cos(theta);
+                    localZ = cz + R * Math.sin(theta);
+                    yaw = theta - Math.PI / 2;
+                } else { // 南 -> 東
+                    const theta = Math.PI + (Math.PI / 2) * progress;
+                    localX = cx + R * Math.cos(theta);
+                    localZ = cz + R * Math.sin(theta);
+                    yaw = theta - 1.5 * Math.PI;
+                }
+            }
+            // 曲線 SW
+            else if (tileType === 'curve_sw') {
+                const cx = -2.0, cz = 2.0, R = 2.0;
+                if (inDir === 2 && outDir === 3) { // 南 -> 西
+                    const theta = 0 - (Math.PI / 2) * progress;
+                    localX = cx + R * Math.cos(theta);
+                    localZ = cz + R * Math.sin(theta);
+                    yaw = theta - Math.PI / 2;
+                } else { // 西 -> 南
+                    const theta = -Math.PI / 2 + (Math.PI / 2) * progress;
+                    localX = cx + R * Math.cos(theta);
+                    localZ = cz + R * Math.sin(theta);
+                    yaw = theta + Math.PI / 2;
+                }
+            }
+            // 曲線 NW
+            else if (tileType === 'curve_nw') {
+                const cx = -2.0, cz = -2.0, R = 2.0;
+                if (inDir === 3 && outDir === 0) { // 西 -> 北
+                    const theta = Math.PI / 2 - (Math.PI / 2) * progress;
+                    localX = cx + R * Math.cos(theta);
+                    localZ = cz + R * Math.sin(theta);
+                    yaw = theta - Math.PI / 2;
+                } else { // 北 -> 西
+                    const theta = 0 + (Math.PI / 2) * progress;
+                    localX = cx + R * Math.cos(theta);
+                    localZ = cz + R * Math.sin(theta);
+                    yaw = theta + Math.PI / 2;
+                }
+            }
+
+            return { x: worldPos.x + localX, z: worldPos.z + localZ, yaw: yaw };
+        }
+
+        // --- 画面初期構築 & レンダラー設定 ---
+        function initGame() {
+            container = document.getElementById('canvas-container');
+            if (!container) return;
+
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(COLORS.sky_day);
+            // デバッグ対策: FogExp2 の密度を 0.009 から視界良好な 0.0025 に最適化。
+            scene.fog = new THREE.FogExp2(COLORS.sky_day, 0.0025);
+
+            const width = container.clientWidth || window.innerWidth;
+            const height = container.clientHeight || window.innerHeight;
+
+            renderer = new THREE.WebGLRenderer({ antialias: true, logarithmicDepthBuffer: true });
+            renderer.setSize(width, height);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            container.appendChild(renderer.domElement);
+
+            const aspect = width / height;
+            const scale = 32;
+            camera = new THREE.OrthographicCamera(-scale * aspect, scale * aspect, scale, -scale, 1, 1000);
+            resetCamera();
+
+            ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            scene.add(ambientLight);
+
+            shadowLight = new THREE.DirectionalLight(0xfffaec, 0.8);
+            shadowLight.position.set(60, 90, 45);
+            shadowLight.castShadow = true;
+            shadowLight.shadow.mapSize.width = 2048;
+            shadowLight.shadow.mapSize.height = 2048;
+            shadowLight.shadow.camera.near = 0.5;
+            shadowLight.shadow.camera.far = 300;
+            const dLimit = 100;
+            shadowLight.shadow.camera.left = -dLimit;
+            shadowLight.shadow.camera.right = dLimit;
+            shadowLight.shadow.camera.top = dLimit;
+            shadowLight.shadow.camera.bottom = -dLimit;
+            scene.add(shadowLight);
+
+            gridMap = [];
+            for (let x = 0; x < GRID_SIZE; x++) {
+                gridMap[x] = [];
+                for (let z = 0; z < GRID_SIZE; z++) {
+                    gridMap[x][z] = { type: 'empty', mesh: null, metadata: {} };
+                }
+            }
+
+            createLandscapeGround();
+
+            // 線路プレビュー用カーソル
+            const cursorGeo = new THREE.BoxGeometry(TILE_SIZE * 0.96, 0.15, TILE_SIZE * 0.96);
+            const cursorMat = new THREE.MeshBasicMaterial({
+                color: 0x3b82f6,
+                transparent: true,
+                opacity: 0.4
+            });
+            gridCursorMesh = new THREE.Mesh(cursorGeo, cursorMat);
+            gridCursorMesh.position.set(0, 0.08, 0);
+            scene.add(gridCursorMesh);
+
+            const rayPlaneGeo = new THREE.PlaneGeometry(500, 500);
+            rayPlaneGeo.rotateX(-Math.PI / 2);
+            helperPlane = new THREE.Mesh(rayPlaneGeo, new THREE.MeshBasicMaterial({ visible: false }));
+            scene.add(helperPlane);
+
+            setupCameraManipulations();
+
+            // デバッグ対策: マウス・タッチイベントリスナーの確実なバインディング
+            container.addEventListener('mousemove', onMouseMove);
+            container.addEventListener('mousedown', onMouseDown);
+            window.addEventListener('mouseup', onMouseUp);
+            window.addEventListener('resize', onWindowResize);
+
+            const overlay = document.getElementById('loading-overlay');
+            if (overlay) {
+                overlay.classList.add('opacity-0');
+                setTimeout(() => { overlay.style.display = 'none'; }, 700);
+            }
+
+            animateScene();
+            setInterval(gameLogicClockTick, 1000);
+
+            selectTool('auto_track');
+        }
+
+        function createLandscapeGround() {
+            const baseGeo = new THREE.BoxGeometry(GRID_SIZE * TILE_SIZE, 2, GRID_SIZE * TILE_SIZE);
+            const baseMat = new THREE.MeshLambertMaterial({ color: COLORS.grass });
+            const ground = new THREE.Mesh(baseGeo, baseMat);
+            ground.position.y = -1;
+            ground.receiveShadow = true;
+            scene.add(ground);
+
+            const gridHelper = new THREE.GridHelper(GRID_SIZE * TILE_SIZE, GRID_SIZE, COLORS.grid, COLORS.grid);
+            gridHelper.position.y = 0.02;
+            scene.add(gridHelper);
+        }
+
+        function setupCameraManipulations() {
+            container.addEventListener('mousedown', (e) => {
+                // 右クリック(2)または施工ツール未選択時(null)にドラッグカメラ回転を有効化
+                if (e.button === 2 || !selectedTool) {
+                    isDraggingCamera = true;
+                    previousMousePosition = { x: e.clientX, y: e.clientY };
+                }
+            });
+
+            container.addEventListener('mouseup', () => { isDraggingCamera = false; });
+            container.addEventListener('mouseleave', () => { isDraggingCamera = false; });
+
+            container.addEventListener('mousemove', (e) => {
+                if (isDraggingCamera && followTrainIndex === -1) {
+                    const deltaX = e.clientX - previousMousePosition.x;
+                    const deltaY = e.clientY - previousMousePosition.y;
+
+                    cameraAzimuth -= deltaX * 0.006;
+                    cameraElevation += deltaY * 0.006;
+                    cameraElevation = Math.max(0.12, Math.min(Math.PI / 2 - 0.05, cameraElevation));
+
+                    updateOrbitCamera();
+                    previousMousePosition = { x: e.clientX, y: e.clientY };
+                }
+            });
+
+            container.addEventListener('wheel', (e) => {
+                if (followTrainIndex !== -1) return;
+                let scaleFactor = e.deltaY * 0.04;
+                camera.zoom = Math.max(0.15, Math.min(2.8, camera.zoom - scaleFactor * 0.04));
+                camera.updateProjectionMatrix();
+            });
+
+            container.addEventListener('contextmenu', e => e.preventDefault());
+        }
+
+        function updateOrbitCamera() {
+            if (followTrainIndex !== -1) return;
+
+            const x = cameraRadius * Math.sin(cameraAzimuth) * Math.cos(cameraElevation);
+            const z = cameraRadius * Math.cos(cameraAzimuth) * Math.cos(cameraElevation);
+            const y = cameraRadius * Math.sin(cameraElevation);
+
+            camera.position.set(x, y, z);
+            camera.lookAt(0, 0, 0);
+        }
+
+        function resetCamera() {
+            followTrainIndex = -1;
+            const lbl = document.getElementById('follow-status');
+            if (lbl) lbl.innerText = "車窓";
+            camera.zoom = 0.55; 
+            cameraAzimuth = Math.PI / 4;
+            cameraElevation = Math.PI / 5.5;
+            updateOrbitCamera();
+            camera.updateProjectionMatrix();
+        }
+
+        function setCameraView(type) {
+            followTrainIndex = -1;
+            const lbl = document.getElementById('follow-status');
+            if (lbl) lbl.innerText = "車窓";
+            if (type === 'iso') {
+                cameraAzimuth = Math.PI / 4;
+                cameraElevation = Math.PI / 5.5;
+                camera.zoom = 0.9;
+            }
+            updateOrbitCamera();
+            camera.updateProjectionMatrix();
+        }
+
+        function toggleFollowCamera() {
+            if (trains.length === 0) {
+                logNewsFeed("線路上に運行中の列車がありません。", "text-amber-400");
+                return;
+            }
+            if (followTrainIndex === -1) {
+                followTrainIndex = 0;
+                document.getElementById('follow-status').innerText = "解除";
+                logNewsFeed("列車追跡（車窓ダイヤ）を開始します。", "text-blue-400");
+            } else {
+                followTrainIndex = -1;
+                document.getElementById('follow-status').innerText = "車窓";
+                resetCamera();
+            }
+        }
+
+        // --- 基礎座標相互変換ヘルパー関数 ---
+        function getGridWorldCoords(gridX, gridZ) {
+            return {
+                x: (gridX - GRID_SIZE / 2 + 0.5) * TILE_SIZE,
+                z: (gridZ - GRID_SIZE / 2 + 0.5) * TILE_SIZE
+            };
+        }
+
+        function getGridFromWorldCoords(worldX, worldZ) {
+            const col = Math.floor((worldX / TILE_SIZE) + GRID_SIZE / 2);
+            const row = Math.floor((worldZ / TILE_SIZE) + GRID_SIZE / 2);
+            return { col, row };
+        }
+
+        function selectTool(toolName) {
+            initAudio();
+
+            const buttons = document.querySelectorAll('button[id^="tool-"]');
+            buttons.forEach(b => {
+                b.classList.remove('glow-active', 'border-blue-700', 'bg-blue-900/40', 'text-blue-300');
+                b.classList.add('border-slate-800', 'bg-slate-850');
+            });
+
+            selectedTool = toolName;
+            
+            const active = document.getElementById(`tool-${toolName}`);
+            if (active) {
+                active.classList.add('glow-active');
+                active.classList.remove('border-slate-800', 'bg-slate-850');
+                if (toolName === 'auto_track' || toolName === 'station') {
+                    active.classList.add('border-blue-700', 'bg-blue-900/40');
+                }
+            }
+
+            gridCursorMesh.visible = true;
+            logNewsFeed(`【施工】 ${toolName.toUpperCase()} モードに変更。`, "text-slate-300");
+        }
+
+        function onMouseMove(event) {
+            if (!helperPlane) return;
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObject(helperPlane);
+
+            if (intersects.length > 0) {
+                const pt = intersects[0].point;
+                const { col, row } = getGridFromWorldCoords(pt.x, pt.z);
+
+                if (col >= 0 && col < GRID_SIZE && row >= 0 && row < GRID_SIZE) {
+                    const worldPos = getGridWorldCoords(col, row);
+                    gridCursorMesh.position.set(worldPos.x, 0.08, worldPos.z);
+                    gridCursorMesh.visible = true;
+
+                    if (isDrawingTrack && selectedTool === 'auto_track') {
+                        handleDragTrackProgress(col, row);
+                    }
+                } else {
+                    gridCursorMesh.visible = false;
+                }
+            } else {
+                gridCursorMesh.visible = false;
+            }
+        }
+
+        function onMouseDown(event) {
+            if (event.button !== 0 || !helperPlane) return; 
+            
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObject(helperPlane);
+
+            if (intersects.length > 0) {
+                const pt = intersects[0].point;
+                const { col, row } = getGridFromWorldCoords(pt.x, pt.z);
+
+                if (col >= 0 && col < GRID_SIZE && row >= 0 && row < GRID_SIZE) {
+                    if (selectedTool === 'auto_track') {
+                        startSmartDragTrack(col, row);
+                    } else {
+                        executeStationOrOtherAction(col, row);
+                    }
+                }
+            }
+        }
+
+        function onMouseUp(event) {
+            if (event.button === 0 && isDrawingTrack) {
+                finishSmartDragTrack();
+            }
+        }
+
+        // --- 軌道ネットワーク精密再計算 ---
+        function recalculateAllTrackConnections() {
+            for (let x = 0; x < GRID_SIZE; x++) {
+                for (let z = 0; z < GRID_SIZE; z++) {
+                    const tile = gridMap[x][z];
+                    if (isTrackOrStation(tile.type)) {
+                        if (tile.type.startsWith('station_')) continue;
+
+                        let neighbors = [false, false, false, false]; 
+                        
+                        if (z > 0 && isTrackOrStation(gridMap[x][z - 1].type)) neighbors[0] = true;
+                        if (x < GRID_SIZE - 1 && isTrackOrStation(gridMap[x + 1][z].type)) neighbors[1] = true;
+                        if (z < GRID_SIZE - 1 && isTrackOrStation(gridMap[x][z + 1].type)) neighbors[2] = true;
+                        if (x > 0 && isTrackOrStation(gridMap[x - 1][z].type)) neighbors[3] = true;
+
+                        let connectDirs = [];
+                        for (let d = 0; d < 4; d++) {
+                            if (neighbors[d]) connectDirs.push(d);
+                        }
+
+                        let finalType = tile.type;
+
+                        if (connectDirs.length === 2) {
+                            finalType = getTrackTypeFromDirs(connectDirs[0], connectDirs[1]);
+                        } else if (connectDirs.length === 1) {
+                            const singleDir = connectDirs[0];
+                            finalType = (singleDir === 0 || singleDir === 2) ? 'track_v' : 'track_h';
+                        } else if (connectDirs.length > 2) {
+                            if (neighbors[1] && neighbors[3]) {
+                                finalType = 'track_h';
+                            } else if (neighbors[0] && neighbors[2]) {
+                                finalType = 'track_v';
+                            } else {
+                                finalType = getTrackTypeFromDirs(connectDirs[0], connectDirs[1]);
+                            }
+                        } else {
+                            if (tile.type.startsWith('curve_')) {
+                                finalType = 'track_h';
+                            }
+                        }
+
+                        if (finalType !== tile.type) {
+                            updateTrackTileTypeOnly(x, z, finalType);
+                        }
+                    }
+                }
+            }
+        }
+
+        // デバッグ対策: 再計算時の個別レールタイプ動的アップデート関数
+        function updateTrackTileTypeOnly(x, z, finalType) {
+            const tile = gridMap[x][z];
+            if (tile.mesh) {
+                scene.remove(tile.mesh);
+            }
+            tile.type = finalType;
+            const newMesh = constructTrackProceduralMesh(finalType);
+            const pos = getGridWorldCoords(x, z);
+            newMesh.position.set(pos.x, 0, pos.z);
+            scene.add(newMesh);
+            tile.mesh = newMesh;
+        }
+
+        // --- スマートドラッグ線路敷設システムの実装 ---
+        function startSmartDragTrack(col, row) {
+            const tile = gridMap[col][row];
+            if (tile.type !== 'empty') return;
+            initAudio();
+            isDrawingTrack = true;
+            dragPath = [{ col, row }];
+            lastDragCol = col;
+            lastDragRow = row;
+
+            buildTrackAt(col, row, 'track_h');
+            playSoundBuildChirp();
+        }
+
+        function handleDragTrackProgress(col, row) {
+            if (!isDrawingTrack) return;
+            if (col === lastDragCol && row === lastDragRow) return;
+
+            // 隣接判定
+            const dist = Math.abs(col - lastDragCol) + Math.abs(row - lastDragRow);
+            if (dist !== 1) return;
+
+            if (funds < COSTS.auto_track) {
+                logNewsFeed("資金不足のため線路を敷設できません！", "text-rose-400");
+                isDrawingTrack = false;
+                return;
+            }
+
+            const targetTile = gridMap[col][row];
+            if (targetTile.type !== 'empty') return;
+
+            const moveDir = getMovementDirection(lastDragCol, lastDragRow, col, row);
+            if (moveDir === null) return;
+
+            dragPath.push({ col, row });
+
+            funds -= COSTS.auto_track;
+            totalBuiltCost += COSTS.auto_track;
+            updateStatsUI();
+
+            const tileType = (moveDir === 0 || moveDir === 2) ? 'track_v' : 'track_h';
+            buildTrackAt(col, row, tileType);
+            playSoundBuildChirp();
+
+            recalculateAllTrackConnections();
+
+            lastDragCol = col;
+            lastDragRow = row;
+        }
+
+        function finishSmartDragTrack() {
+            isDrawingTrack = false;
+            dragPath = [];
+            lastDragCol = -1;
+            lastDragRow = -1;
+            logNewsFeed("自動線路敷設が完了しました。接続部が自動最適化されました。", "text-emerald-400");
+        }
+
+        function buildTrackAt(col, row, type) {
+            const tile = gridMap[col][row];
+            if (tile.metadata && tile.metadata.naturalDecoration) {
+                scene.remove(tile.metadata.naturalDecoration);
+                tile.metadata.naturalDecoration = null;
+            }
+
+            tile.type = type;
+            const mesh = constructTrackProceduralMesh(type);
+            const pos = getGridWorldCoords(col, row);
+            mesh.position.set(pos.x, 0, pos.z);
+            scene.add(mesh);
+            tile.mesh = mesh;
+        }
+
+        // --- 駅新設・撤去アクションの実装 ---
+        function executeStationOrOtherAction(col, row) {
+            initAudio();
+            const tile = gridMap[col][row];
+
+            if (selectedTool === 'station') {
+                if (tile.type !== 'track_h' && tile.type !== 'track_v') {
+                    logNewsFeed("駅は直線レール（水平または垂直）の上にのみ建設できます！", "text-amber-400");
+                    return;
+                }
+                if (funds < COSTS.station) {
+                    logNewsFeed("資金不足のため駅を建設できません！", "text-rose-400");
+                    return;
+                }
+
+                funds -= COSTS.station;
+                totalBuiltCost += COSTS.station;
+                updateStatsUI();
+
+                const stationType = (tile.type === 'track_h') ? 'station_h' : 'station_v';
+                if (tile.mesh) scene.remove(tile.mesh);
+
+                tile.type = stationType;
+                const stationMesh = constructStationProceduralMesh(stationType);
+                const pos = getGridWorldCoords(col, row);
+                stationMesh.position.set(pos.x, 0, pos.z);
+                scene.add(stationMesh);
+                tile.mesh = stationMesh;
+
+                demolishSurroundingBuildings(col, row);
+                playSoundStationChime();
+                logNewsFeed(`【駅新設】 座標(${col}, ${row})に新駅を開業しました！周辺開発が活性化します。`, "text-emerald-400");
+            } 
+            else if (selectedTool === 'spawn_train') {
+                performTrainSpawnAction(col, row);
+            } 
+            else if (selectedTool === 'clear') {
+                if (tile.type === 'empty') return;
+                if (funds < COSTS.clear) {
+                    logNewsFeed("資金不足のため撤去工事を行えません！", "text-rose-400");
+                    return;
+                }
+
+                funds -= COSTS.clear;
+                totalBuiltCost += COSTS.clear;
+                updateStatsUI();
+
+                if (tile.mesh) {
+                    scene.remove(tile.mesh);
+                    tile.mesh = null;
+                }
+
+                demolishSurroundingBuildings(col, row);
+
+                // 線路上の列車を安全に撤去
+                for (let i = trains.length - 1; i >= 0; i--) {
+                    const t = trains[i];
+                    if (t.col === col && t.row === row) {
+                        scene.remove(t.spawnGroup);
+                        trains.splice(i, 1);
+                        followTrainIndex = -1;
+                        document.getElementById('follow-status').innerText = "車窓";
+                        logNewsFeed(`【撤去】 座標(${col}, ${row})の特急列車を車庫へ回収しました。`, "text-rose-300");
+                    }
+                }
+
+                tile.type = 'empty';
+                tile.metadata = {};
+
+                playSoundUndoChirp();
+                logNewsFeed(`【撤去】 座標(${col}, ${row})の施設を安全に解体・撤去しました。`, "text-slate-400");
+
+                recalculateAllTrackConnections();
+            }
+        }
+
+        // --- 鉄道3Dモデル生成 ---
+        function constructTrackProceduralMesh(type) {
+            const group = new THREE.Group();
+            
+            const sleepGeo = new THREE.BoxGeometry(1.15, 0.08, 0.4);
+            const sleepMat = new THREE.MeshLambertMaterial({ color: COLORS.wood });
+
+            const railGeo = new THREE.BoxGeometry(0.1, 0.12, 4.0);
+            const railMat = new THREE.MeshStandardMaterial({
+                color: COLORS.track,
+                metalness: 0.9,
+                roughness: 0.15
+            });
+
+            if (type === 'track_h') {
+                for (let offset = -1.5; offset <= 1.5; offset += 0.95) {
+                    const block = new THREE.Mesh(sleepGeo, sleepMat);
+                    block.rotation.y = Math.PI / 2; 
+                    block.position.set(offset, 0.04, 0);
+                    block.receiveShadow = true;
+                    group.add(block);
+                }
+                const rail1 = new THREE.Mesh(railGeo, railMat);
+                rail1.rotation.y = Math.PI / 2; 
+                rail1.position.set(0, 0.14, -0.55);
+                rail1.castShadow = true;
+                const rail2 = rail1.clone();
+                rail2.position.set(0, 0.14, 0.55);
+                rail2.castShadow = true;
+                group.add(rail1, rail2);
+            } 
+            else if (type === 'track_v') {
+                for (let offset = -1.5; offset <= 1.5; offset += 0.95) {
+                    const block = new THREE.Mesh(sleepGeo, sleepMat);
+                    block.position.set(0, 0.04, offset);
+                    block.receiveShadow = true;
+                    group.add(block);
+                }
+                const rail1 = new THREE.Mesh(railGeo, railMat);
+                rail1.position.set(-0.55, 0.14, 0);
+                rail1.castShadow = true;
+                const rail2 = rail1.clone();
+                rail2.position.set(0.55, 0.14, 0);
+                rail2.castShadow = true;
+                group.add(rail1, rail2);
+            }
+            else if (type.startsWith('curve_')) {
+                let ang = 0;
+                if (type === 'curve_ne') ang = 0;              
+                if (type === 'curve_se') ang = -Math.PI / 2;    
+                if (type === 'curve_sw') ang = Math.PI;         
+                if (type === 'curve_nw') ang = Math.PI / 2;     
+
+                const arcRad = 2.0;
+                const steps = 8;
+                
+                for (let s = 0; s <= steps; s++) {
+                    const theta = Math.PI - (s / steps) * (Math.PI / 2);
+                    const rx = arcRad * Math.cos(theta) + 2.0;
+                    const rz = arcRad * Math.sin(theta) - 2.0;
+
+                    const sl = new THREE.Mesh(sleepGeo, sleepMat);
+                    sl.position.set(rx, 0.04, rz);
+                    sl.rotation.y = Math.PI - theta;
+                    sl.receiveShadow = true;
+                    group.add(sl);
+                }
+
+                const oRad = 2.55;
+                const iRad = 1.45;
+                const segmentRail = new THREE.BoxGeometry(0.1, 0.12, 0.5);
+                
+                for (let s = 0; s <= steps * 2; s++) {
+                    const theta = Math.PI - (s / (steps * 2)) * (Math.PI / 2);
+                    
+                    const ox = oRad * Math.cos(theta) + 2.0;
+                    const oz = oRad * Math.sin(theta) - 2.0;
+                    const rOuter = new THREE.Mesh(segmentRail, railMat);
+                    rOuter.position.set(ox, 0.12, oz);
+                    rOuter.rotation.y = Math.PI - theta;
+                    rOuter.castShadow = true;
+                    group.add(rOuter);
+
+                    const ix = iRad * Math.cos(theta) + 2.0;
+                    const iz = iRad * Math.sin(theta) - 2.0;
+                    const rInner = new THREE.Mesh(segmentRail, railMat);
+                    rInner.position.set(ix, 0.12, iz);
+                    rInner.rotation.y = Math.PI - theta;
+                    rInner.castShadow = true;
+                    group.add(rInner);
+                }
+                group.rotation.y = ang;
+            }
+
+            return group;
+        }
+
+        function constructStationProceduralMesh(type) {
+            const group = new THREE.Group();
+
+            const platGeo = new THREE.BoxGeometry(3.9, 0.45, 3.9);
+            const platMat = new THREE.MeshStandardMaterial({ color: COLORS.station, roughness: 0.9 });
+            const platform = new THREE.Mesh(platGeo, platMat);
+            platform.position.y = 0.225;
+            platform.receiveShadow = true;
+            group.add(platform);
+
+            const supportMat = new THREE.MeshLambertMaterial({ color: 0x4b5563 });
+            const roofMat = new THREE.MeshStandardMaterial({ color: 0xb45309, roughness: 0.4 });
+
+            if (type === 'station_h') {
+                const embeddedTrack = constructTrackProceduralMesh('track_h');
+                embeddedTrack.position.y = 0.23; 
+                group.add(embeddedTrack);
+
+                const pole1 = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 1.9), supportMat);
+                pole1.position.set(-1.6, 1.1, -1.3);
+                pole1.castShadow = true;
+                const pole2 = pole1.clone();
+                pole2.position.set(1.6, 1.1, -1.3);
+                group.add(pole1, pole2);
+
+                const roof = new THREE.Mesh(new THREE.BoxGeometry(3.9, 0.12, 1.6), roofMat);
+                roof.position.set(0, 2.05, -1.1);
+                roof.rotation.x = 0.08;
+                roof.castShadow = true;
+                group.add(roof);
+            } 
+            else if (type === 'station_v') {
+                const embeddedTrack = constructTrackProceduralMesh('track_v');
+                embeddedTrack.position.y = 0.23;
+                group.add(embeddedTrack);
+
+                const pole1 = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 1.9), supportMat);
+                pole1.position.set(-1.3, 1.1, -1.6);
+                pole1.castShadow = true;
+                const pole2 = pole1.clone();
+                pole2.position.set(-1.3, 1.1, 1.6);
+                group.add(pole1, pole2);
+
+                const roof = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.12, 3.9), roofMat);
+                roof.position.set(-1.1, 2.05, 0);
+                roof.rotation.z = -0.08;
+                roof.castShadow = true;
+                group.add(roof);
+            }
+
+            const yellowLine = new THREE.Mesh(
+                new THREE.BoxGeometry(3.7, 0.02, 0.08),
+                new THREE.MeshBasicMaterial({ color: 0xeab308 })
+            );
+            yellowLine.position.set(0, 0.46, 1.15);
+            group.add(yellowLine);
+
+            return group;
+        }
+
+        // --- 列車グラフィック生成 ---
+        function createEngineMesh() {
+            const trainGroup = new THREE.Group();
+
+            const bodyMat = new THREE.MeshStandardMaterial({ color: 0xd97706, roughness: 0.25 }); 
+            const windowGlassMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.1 });
+            const lightBeamMat = new THREE.MeshBasicMaterial({ color: 0xfef08a });
+
+            const engineBox = new THREE.Mesh(new THREE.BoxGeometry(1.85, 0.85, 0.78), bodyMat);
+            engineBox.position.y = 0.65;
+            engineBox.castShadow = true;
+            trainGroup.add(engineBox);
+
+            const cabBox = new THREE.Mesh(new THREE.BoxGeometry(0.85, 0.5, 0.78), windowGlassMat);
+            cabBox.position.set(0.45, 1.25, 0); 
+            cabBox.castShadow = true;
+            trainGroup.add(cabBox);
+
+            const light1 = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.15, 0.15), lightBeamMat);
+            light1.position.set(0.93, 0.6, 0.22);
+            const light2 = light1.clone();
+            light2.position.set(0.93, 0.6, -0.22);
+            trainGroup.add(light1, light2);
+
+            return trainGroup;
+        }
+
+        function createCarriageMesh(colorHex = 0x475569) {
+            const wagonGroup = new THREE.Group();
+            const bodyMat = new THREE.MeshStandardMaterial({ color: colorHex, roughness: 0.25 }); 
+            const windowGlassMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.1 });
+
+            const wagonBox = new THREE.Mesh(new THREE.BoxGeometry(1.85, 0.85, 0.78), bodyMat);
+            wagonBox.position.y = 0.65;
+            wagonBox.castShadow = true;
+            wagonGroup.add(wagonBox);
+
+            const windows = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.22, 0.8), windowGlassMat);
+            windows.position.set(0, 0.75, 0);
+            wagonGroup.add(windows);
+
+            return wagonGroup;
+        }
+
+        function performTrainSpawnAction(col, row) {
+            const tile = gridMap[col][row];
+            if (!tile || (!tile.type.startsWith('track_') && !tile.type.startsWith('station_'))) {
+                logNewsFeed("列車を配置するには、敷設されている直線レールの上を選択してください！", "text-amber-400");
+                return;
+            }
+
+            const currentPresetCost = TRAIN_PRESETS[configTrainCars].cost;
+            if (funds < currentPresetCost) {
+                logNewsFeed("資金不足のため新型列車を購入できません。", "text-rose-400");
+                return;
+            }
+
+            funds -= currentPresetCost;
+            totalBuiltCost += currentPresetCost;
+            updateStatsUI();
+
+            const spawnGroup = new THREE.Group(); 
+            scene.add(spawnGroup);
+
+            const carMeshes = [];
+            
+            // 機関車
+            const engine = createEngineMesh();
+            spawnGroup.add(engine);
+            carMeshes.push(engine);
+
+            // 客車
+            for (let c = 1; c < configTrainCars; c++) {
+                const carColor = (c % 2 === 0) ? 0x1e3a8a : 0x0f172a; 
+                const carriage = createCarriageMesh(carColor);
+                spawnGroup.add(carriage);
+                carMeshes.push(carriage);
+            }
+
+            let startDirection = 1; // 東向き
+            if (tile.type === 'track_v' || tile.type === 'station_v') {
+                startDirection = 2; // 南向き
+            }
+
+            const initialWorldCoords = getGridWorldCoords(col, row);
+
+            const startInDir = getOppositeDir(startDirection);
+            const startOutDir = getOutDir(tile.type, startInDir);
+
+            const trainRecord = {
+                id: ++trainIdCounter,
+                spawnGroup: spawnGroup,
+                carMeshes: carMeshes,         
+                carCount: configTrainCars,     
+                capacityFactor: TRAIN_PRESETS[configTrainCars].factor,
+                col: col,
+                row: row,
+                inDir: startInDir,
+                outDir: startOutDir,
+                progress: 0,
+                speed: 0.015,
+                stationWaitTimer: 0,
+                historyBuffer: [] 
+            };
+
+            // スポーン時の瞬間的な挙動防止用にバッファを先行充填
+            const initPosState = getTilePathPosition(col, row, startInDir, startOutDir, 0, tile.type);
+            for (let i = 0; i < 300; i++) {
+                trainRecord.historyBuffer.push({
+                    x: initPosState.x,
+                    z: initPosState.z,
+                    angle: initPosState.yaw
+                });
+            }
+
+            trains.push(trainRecord);
+            playSoundHorn();
+            logNewsFeed(`【新製配備】 第 ${trainRecord.id} 特急（${configTrainCars}両編成）が営業運転を開始します。`, "text-emerald-400");
+        }
+
+        const DIR_OFFSETS = [
+            { dCol: 0, dRow: -1, angleY: -Math.PI / 2 }, // 0: North
+            { dCol: 1, dRow: 0, angleY: 0 },             // 1: East
+            { dCol: 0, dRow: 1, angleY: Math.PI / 2 },  // 2: South
+            { dCol: -1, dRow: 0, angleY: Math.PI }      // 3: West
+        ];
+
+        // --- 精密エッジ連結物理 ＆ ガタンゴトン効果音更新 ---
+        function handleRunningTrainsPhysics() {
+            if (simSpeed === 0) return;
+
+            for (let step = 0; step < simSpeed; step++) {
+                for (let i = 0; i < trains.length; i++) {
+                    const t = trains[i];
+
+                    if (t.stationWaitTimer > 0) {
+                        t.stationWaitTimer--;
+                        continue; 
+                    }
+
+                    // 1Tick進める
+                    t.progress += t.speed;
+
+                    // 車窓効果音ギミック (progressに応じたガタンゴトン同期)
+                    if (followTrainIndex === i) {
+                        const progCheck = Math.round(t.progress * 100);
+                        if (progCheck === 5 || progCheck === 25 || progCheck === 45) {
+                            playTrainJointSound();
+                        }
+                    }
+
+                    const currentTile = gridMap[t.col]?.[t.row];
+                    
+                    // デバッグ対策: 線路の撤去・改築時等に発生し得る列車脱線ぬるぽクラッシュ対策
+                    if (!currentTile || !isTrackOrStation(currentTile.type)) {
+                        scene.remove(t.spawnGroup);
+                        trains.splice(i, 1);
+                        i--;
+                        followTrainIndex = -1;
+                        const fStatus = document.getElementById('follow-status');
+                        if (fStatus) fStatus.innerText = "車窓";
+                        logNewsFeed("【運行特記】 線路の寸断または撤去に伴い、列車を安全に車庫へ回送しました。", "text-rose-400");
+                        continue;
+                    }
+                    
+                    // 円弧カーブ、直線の形状に沿って完璧にミリ単位トレース
+                    const posState = getTilePathPosition(t.col, t.row, t.inDir, t.outDir, Math.min(1.0, t.progress), currentTile.type);
+
+                    t.carMeshes[0].position.set(posState.x, 0, posState.z);
+                    t.carMeshes[0].rotation.y = posState.yaw;
+
+                    // 履歴バッファに最先端情報をプッシュ
+                    t.historyBuffer.unshift({ x: posState.x, z: posState.z, angle: posState.yaw });
+                    if (t.historyBuffer.length > 400) {
+                        t.historyBuffer.pop();
+                    }
+
+                    // 客車追従処理 (フレームギャップ = 16)
+                    const frameGap = 16; 
+                    for (let c = 1; c < t.carCount; c++) {
+                        const carriageMesh = t.carMeshes[c];
+                        const historyIndex = c * frameGap;
+
+                        if (historyIndex < t.historyBuffer.length) {
+                            const pastState = t.historyBuffer[historyIndex];
+                            carriageMesh.position.set(pastState.x, 0, pastState.z);
+                            carriageMesh.rotation.y = pastState.angle;
+                        }
+                    }
+
+                    // 1マス境界（エッジ）へ到達
+                    if (t.progress >= 1.0) {
+                        t.progress = 0;
+
+                        // 駅での停車判定
+                        if (currentTile.type.startsWith('station_')) {
+                            const countLocalCivs = queryCivDensityNear(t.col, t.row, 5);
+                            const baseFare = (countLocalCivs * 35) + (pseudoRandom() * 2500); 
+
+                            // 運行ダイヤ：夜間ダイヤ（20時〜6時）は運賃半減
+                            const isNightTime = (gameHour >= 20 || gameHour < 6);
+                            const diaMultiplier = isNightTime ? 0.5 : 1.0;
+
+                            const fareEarning = Math.floor(baseFare * t.capacityFactor * (demandR / 50) * diaMultiplier);
+
+                            if (fareEarning > 0) {
+                                funds += fareEarning;
+                                totalRevenue += fareEarning;
+                                updateStatsUI();
+                                const diaText = isNightTime ? "【夜間ダイヤ50%】" : "【昼間ダイヤ】";
+                                logNewsFeed(`${diaText} 第 ${t.id} 列車 運賃収入: +¥${fareEarning.toLocaleString()}`, "text-emerald-300");
+                                playSoundStationChime();
+
+                                demandR = Math.min(100, demandR + 3);
+                                demandC = Math.min(100, demandC + 4);
+                                demandO = Math.min(100, demandO + 2);
+                                updateDemandBars();
+                            }
+
+                            t.stationWaitTimer = 35; // 停車時間
+                        }
+
+                        // 進行方向への隣接判定
+                        const offset = DIR_OFFSETS[t.outDir];
+                        const nextCol = t.col + offset.dCol;
+                        const nextRow = t.row + offset.dRow;
+
+                        if (nextCol < 0 || nextCol >= GRID_SIZE || nextRow < 0 || nextRow >= GRID_SIZE) {
+                            turnTrainAround(t);
+                            continue;
+                        }
+
+                        const nextTile = gridMap[nextCol][nextRow];
+                        const nextInDir = getOppositeDir(t.outDir);
+
+                        if (isEligibleTrackConnection(nextTile.type, t.outDir)) {
+                            t.col = nextCol;
+                            t.row = nextRow;
+                            t.inDir = nextInDir;
+                            t.outDir = getOutDir(nextTile.type, nextInDir);
+                        } else {
+                            turnTrainAround(t);
+                        }
+                    }
+                }
+            }
+        }
+
+        function isEligibleTrackConnection(tileType, movingDir) {
+            if (tileType === 'empty' || tileType === 'water' || tileType === 'mountain') return false;
+
+            if (tileType === 'track_h' || tileType === 'station_h') {
+                return (movingDir === 1 || movingDir === 3);
+            }
+            if (tileType === 'track_v' || tileType === 'station_v') {
+                return (movingDir === 0 || movingDir === 2);
+            }
+
+            if (tileType === 'curve_ne') return (movingDir === 2 || movingDir === 3); 
+            if (tileType === 'curve_se') return (movingDir === 0 || movingDir === 3); 
+            if (tileType === 'curve_sw') return (movingDir === 0 || movingDir === 1); 
+            if (tileType === 'curve_nw') return (movingDir === 2 || movingDir === 1); 
+
+            return false;
+        }
+
+        // 折り返しアライメント処理
+        function turnTrainAround(train) {
+            const temp = train.inDir;
+            train.inDir = train.outDir;
+            train.outDir = temp;
+            train.progress = 0; 
+
+            logNewsFeed(`【折り返し】 第 ${train.id} 列車が終端により折り返しました。`, "text-amber-400");
+        }
+
+        // --- RCI 都市自動発展アルゴリズム ---
+        function updateDemandBars() {
+            const dr = document.getElementById('demand-r');
+            const dc = document.getElementById('demand-c');
+            const do_ = document.getElementById('demand-o');
+            if (dr) dr.style.width = `${demandR}%`;
+            if (dc) dc.style.width = `${demandC}%`;
+            if (do_) do_.style.width = `${demandO}%`;
+        }
+
+        function handleUrbanGrowthCalculations() {
+            demandR = Math.max(10, demandR - 1);
+            demandC = Math.max(10, demandC - 1.5);
+            demandO = Math.max(10, demandO - 0.8);
+
+            for (let x = 0; x < GRID_SIZE; x++) {
+                for (let z = 0; z < GRID_SIZE; z++) {
+                    if (gridMap[x]?.[z]?.type.startsWith('station_')) {
+                        triggerLocalBuildingSpawning(x, z);
+                    }
+                }
+            }
+            updateDemandBars();
+        }
+
+        function triggerLocalBuildingSpawning(stationX, stationZ) {
+            const totalDemand = demandR + demandC + demandO;
+            if (totalDemand < 60) return; 
+
+            const limit = 5; 
+            const targetX = stationX + Math.floor(Math.random() * (limit * 2 + 1)) - limit;
+            const targetZ = stationZ + Math.floor(Math.random() * (limit * 2 + 1)) - limit;
+
+            if (targetX >= 0 && targetX < GRID_SIZE && targetZ >= 0 && targetZ < GRID_SIZE) {
+                if (gridMap[targetX][targetZ].type === 'empty') {
+                    const existing = queryUrbanBlockAt(targetX, targetZ);
+                    if (existing) {
+                        if (existing.level < 4) {
+                            if (existing.level === 1 && demandR > 40) {
+                                promoteUrbanBuilding(existing);
+                                demandR = Math.max(10, demandR - 8);
+                            } else if (existing.level === 2 && demandC > 40) {
+                                promoteUrbanBuilding(existing);
+                                demandC = Math.max(10, demandC - 12);
+                            } else if (existing.level === 3 && demandO > 45) {
+                                promoteUrbanBuilding(existing);
+                                demandO = Math.max(10, demandO - 15);
+                            }
+                        }
+                    } else {
+                        if (demandR > 30) {
+                            buildInitialUrbanHome(targetX, targetZ);
+                            demandR = Math.max(10, demandR - 5);
+                        }
+                    }
+                }
+            }
+        }
+
+        function queryUrbanBlockAt(x, z) {
+            return buildingsMap.find(b => b.x === x && b.z === z);
+        }
+
+        function buildInitialUrbanHome(x, z) {
+            const structure = {
+                x: x,
+                z: z,
+                level: 1,
+                mesh: buildHouseShapeMesh(1)
+            };
+
+            const pos = getGridWorldCoords(x, z);
+            structure.mesh.position.set(pos.x, 0, pos.z);
+            scene.add(structure.mesh);
+            buildingsMap.push(structure);
+
+            gridMap[x][z].metadata.hasBuilding = true;
+
+            population += 220;
+            updateStatsUI();
+            logNewsFeed(`【開発】 駅周辺（${x}, ${z}）に一戸建てが建設されました。`, "text-slate-300");
+        }
+
+        function promoteUrbanBuilding(building) {
+            scene.remove(building.mesh);
+            building.level += 1;
+            building.mesh = buildHouseShapeMesh(building.level);
+
+            const pos = getGridWorldCoords(building.x, building.z);
+            building.mesh.position.set(pos.x, 0, pos.z);
+            scene.add(building.mesh);
+
+            let addedCivs = 600;
+            if (building.level === 3) addedCivs = 1800;
+            if (building.level === 4) addedCivs = 6500; 
+
+            population += addedCivs;
+            updateStatsUI();
+
+            const levelNames = ["一戸建て", "マンション", "テナントオフィスビル", "超高層ランドマークビル"];
+            logNewsFeed(`【近代化】 地区（${building.x}, ${building.z}）が「${levelNames[building.level - 1]}」に建て替えられました。`, "text-sky-300");
+        }
+
+        function demolishSurroundingBuildings(x, z) {
+            const index = buildingsMap.findIndex(b => b.x === x && b.z === z);
+            if (index !== -1) {
+                const b = buildingsMap[index];
+                scene.remove(b.mesh);
+                buildingsMap.splice(index, 1);
+
+                population = Math.max(0, population - (b.level * 900));
+                updateStatsUI();
+            }
+        }
+
+        function queryCivDensityNear(stationX, stationZ, radius) {
+            let total = 0;
+            buildingsMap.forEach(b => {
+                const stepDist = Math.abs(b.x - stationX) + Math.abs(b.z - stationZ);
+                if (stepDist <= radius) {
+                    total += b.level * 420;
+                }
+            });
+            return total;
+        }
+
+        function buildHouseShapeMesh(level) {
+            const group = new THREE.Group();
+
+            if (level === 1) {
+                const foundation = new THREE.Mesh(
+                    new THREE.BoxGeometry(1.6, 0.8, 1.6),
+                    new THREE.MeshLambertMaterial({ color: 0xe2e8f0 })
+                );
+                foundation.position.y = 0.4;
+                foundation.castShadow = true;
+                foundation.receiveShadow = true;
+                group.add(foundation);
+
+                const roof = new THREE.Mesh(
+                    new THREE.ConeGeometry(1.35, 0.75, 4),
+                    new THREE.MeshLambertMaterial({ color: 0xb91c1c }) 
+                );
+                roof.rotation.y = Math.PI / 4;
+                roof.position.y = 1.15;
+                roof.castShadow = true;
+                group.add(roof);
+            } 
+            else if (level === 2) {
+                const block = new THREE.Mesh(
+                    new THREE.BoxGeometry(2.3, 1.9, 2.3),
+                    new THREE.MeshLambertMaterial({ color: 0x64748b })
+                );
+                block.position.y = 0.95;
+                block.castShadow = true;
+                block.receiveShadow = true;
+                group.add(block);
+
+                const roofRim = new THREE.Mesh(
+                    new THREE.BoxGeometry(2.1, 0.2, 2.1),
+                    new THREE.MeshLambertMaterial({ color: 0x1e293b })
+                );
+                roofRim.position.y = 2.0;
+                group.add(roofRim);
+
+                const glassMat = new THREE.MeshBasicMaterial({ color: 0xfef08a }); 
+                const winRow = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.3, 2.34), glassMat);
+                winRow.position.set(-0.6, 1.1, 0);
+                group.add(winRow);
+            }
+            else if (level === 3) {
+                const structure = new THREE.Mesh(
+                    new THREE.BoxGeometry(2.1, 4.6, 2.1),
+                    new THREE.MeshLambertMaterial({ color: 0x1e40af })
+                );
+                structure.position.y = 2.3;
+                structure.castShadow = true;
+                structure.receiveShadow = true;
+                group.add(structure);
+
+                const steelMat = new THREE.MeshLambertMaterial({ color: 0x60a5fa });
+                const frame1 = new THREE.Mesh(new THREE.BoxGeometry(0.15, 4.7, 2.2), steelMat);
+                frame1.position.set(-0.95, 2.35, 0);
+                const frame2 = frame1.clone();
+                frame2.position.set(0.95, 2.35, 0);
+                group.add(frame1, frame2);
+            }
+            else if (level === 4) {
+                const core = new THREE.Mesh(
+                    new THREE.BoxGeometry(1.9, 8.0, 1.9),
+                    new THREE.MeshStandardMaterial({ color: 0x020617, roughness: 0.1, metalness: 0.95 })
+                );
+                core.position.y = 4.0;
+                core.castShadow = true;
+                core.receiveShadow = true;
+                group.add(core);
+
+                const trussMat = new THREE.MeshStandardMaterial({ color: 0xe11d48, roughness: 0.3 });
+                const support1 = new THREE.Mesh(new THREE.BoxGeometry(0.12, 8.5, 0.12), trussMat);
+                support1.position.set(0.85, 4.1, 0.85);
+                support1.rotation.z = 0.04;
+                const support2 = support1.clone();
+                support2.position.set(-0.85, 4.1, -0.85);
+                group.add(support1, support2);
+
+                const pad = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 0.8, 0.15, 8), trussMat);
+                pad.position.y = 8.05;
+                group.add(pad);
+            }
+
+            return group;
+        }
+
+        // --- ライティング昼夜変化システム ---
+        let clockOrbitTick = 0;
+        function updateSolarLightSystem() {
+            if (simSpeed === 0) return;
+
+            clockOrbitTick += 0.00085 * simSpeed;
+            if (clockOrbitTick > Math.PI * 2) clockOrbitTick = 0;
+
+            const sunX = Math.cos(clockOrbitTick) * 110 + 20;
+            const sunY = Math.sin(clockOrbitTick) * 90 + 55;
+            const sunZ = Math.sin(clockOrbitTick) * 75 + 20;
+
+            if (shadowLight) {
+                shadowLight.position.set(sunX, sunY, sunZ);
+            }
+
+            const normalizedDay = clockOrbitTick / (Math.PI * 2);
+
+            if (normalizedDay > 0.22 && normalizedDay < 0.62) { // 昼
+                scene.background.setHex(0xa5f3fc);
+                scene.fog.color.setHex(0xa5f3fc);
+                shadowLight.color.setHex(0xfffbeb);
+                shadowLight.intensity = 0.85;
+                ambientLight.intensity = 0.6;
+            } 
+            else if (normalizedDay >= 0.62 && normalizedDay < 0.78) { // 夕方
+                scene.background.setHex(COLORS.sky_sunset);
+                scene.fog.color.setHex(COLORS.sky_sunset);
+                shadowLight.color.setHex(0xea580c);
+                shadowLight.intensity = 0.55;
+                ambientLight.intensity = 0.35;
+            } 
+            else { // 夜間
+                scene.background.setHex(COLORS.sky_night);
+                scene.fog.color.setHex(COLORS.sky_night);
+                shadowLight.color.setHex(0x1e1b4b);
+                shadowLight.intensity = 0.12;
+                ambientLight.intensity = 0.25;
+            }
+        }
+
+        // --- 経営財務 ＆ ダイヤ運行時間監視 ---
+        function gameLogicClockTick() {
+            if (simSpeed === 0) return;
+
+            gameMinute += 15 * simSpeed;
+            if (gameMinute >= 60) {
+                gameMinute = 0;
+                gameHour++;
+            }
+            if (gameHour >= 24) {
+                gameHour = 0;
+                gameDay++;
+
+                processDailyFinancialSettlement();
+            }
+            if (gameDay > 30) {
+                gameDay = 1;
+                gameMonth++;
+                if (gameMonth > 12) {
+                    gameMonth = 1;
+                    gameYear++;
+                }
+            }
+
+            const sDate = document.getElementById('stat-date');
+            if (sDate) sDate.innerText = `${gameYear}年 ${gameMonth}月 ${gameDay}日`;
+            const minuteLabel = gameMinute < 10 ? '0' + gameMinute : gameMinute;
+            const hourLabel = gameHour < 10 ? '0' + gameHour : gameHour;
+            const sTime = document.getElementById('stat-time');
+            if (sTime) sTime.innerText = `${hourLabel}:${minuteLabel}`;
+
+            if (gameMinute % 30 === 0) {
+                handleUrbanGrowthCalculations();
+            }
+        }
+
+        function processDailyFinancialSettlement() {
+            let counts = 0;
+            for (let x = 0; x < GRID_SIZE; x++) {
+                for (let z = 0; z < GRID_SIZE; z++) {
+                    const tile = gridMap[x]?.[z];
+                    if (tile) {
+                        if (tile.type.startsWith('track_')) counts++;
+                        if (tile.type.startsWith('station_')) counts += 8; 
+                    }
+                }
+            }
+
+            let trainMaintenanceSum = 0;
+            trains.forEach(t => {
+                trainMaintenanceSum += 22000 + (t.carCount * 6500);
+            });
+
+            // 借入金に対する利息年利5%
+            const dailyLoanInterest = Math.floor(bankLoan * (0.05 / 360));
+
+            const activeMaintenance = (counts * 4500) + trainMaintenanceSum + dailyLoanInterest;
+            
+            funds -= activeMaintenance;
+            totalMaintenance += activeMaintenance;
+            updateStatsUI();
+
+            if (activeMaintenance > 0) {
+                logNewsFeed("【財務】 日次固定インフラ維持費 ＆ 借入金利息: -¥" + activeMaintenance.toLocaleString(), "text-rose-400");
+            }
+
+            // 破産ゲームオーバー処理
+            if (funds < -100000) {
+                const overlay = document.getElementById('gameover-overlay');
+                if (overlay) overlay.classList.remove('hidden');
+                setSpeed(0);
+                logNewsFeed("【破産倒産】 資金が完全に枯渇し、手形不渡りにより会社運営が終了しました。", "text-red-500 font-bold");
+            }
+        }
+
+        function updateStatsUI() {
+            const fFunds = document.getElementById('stat-funds');
+            if (fFunds) fFunds.innerText = `¥${funds.toLocaleString()}`;
+            const fPop = document.getElementById('stat-pop');
+            if (fPop) fPop.innerText = `${population.toLocaleString()} 人`;
+            const fLoan = document.getElementById('stat-loan');
+            if (fLoan) fLoan.innerText = `¥${bankLoan.toLocaleString()}`;
+
+            const fFare = document.getElementById('finance-fare');
+            if (fFare) fFare.innerText = `+¥${totalRevenue.toLocaleString()}`;
+            const fBuild = document.getElementById('finance-build');
+            if (fBuild) fBuild.innerText = `-¥${totalBuiltCost.toLocaleString()}`;
+            const fTax = document.getElementById('finance-tax');
+            if (fTax) fTax.innerText = `-¥${totalMaintenance.toLocaleString()}`;
+
+            const ledgerNetValue = totalRevenue - (totalBuiltCost + totalMaintenance);
+            const containerNode = document.getElementById('finance-total');
+            if (containerNode) {
+                if (ledgerNetValue >= 0) {
+                    containerNode.innerText = `+¥${ledgerNetValue.toLocaleString()}`;
+                    containerNode.className = "text-right font-bold text-emerald-400";
+                } else {
+                    containerNode.innerText = `-¥${Math.abs(ledgerNetValue).toLocaleString()}`;
+                    containerNode.className = "text-right font-bold text-rose-400";
+                }
+            }
+        }
+
+        function setSpeed(scale) {
+            simSpeed = scale;
+            document.querySelectorAll('button[id^="speed-"]').forEach(btn => {
+                btn.className = "px-2.5 py-1 rounded text-xs transition-all font-bold text-slate-400 hover:text-white";
+            });
+            const identifier = scale === 0 ? '0' : scale === 1 ? '1' : '2';
+            const targetBtn = document.getElementById(`speed-${identifier}`);
+            if (targetBtn) {
+                targetBtn.className = "px-2.5 py-1 rounded text-xs transition-all font-bold bg-blue-600 text-white";
+            }
+            logNewsFeed(`ゲームスピード: x${scale}`, "text-slate-400");
+        }
+
+        function logNewsFeed(str, styleClass = "text-slate-300") {
+            const feed = document.getElementById('news-feed');
+            if (!feed) return;
+            const visualTimestamp = `${gameHour < 10 ? '0' + gameHour : gameHour}:${gameMinute < 10 ? '0' + gameMinute : gameMinute}`;
+
+            const element = document.createElement('div');
+            element.className = `${styleClass} leading-relaxed animate-pulse text-[11px]`;
+            element.innerText = `[${visualTimestamp}] ${str}`;
+
+            feed.prepend(element);
+        }
+
+        // --- プロシージャル地形生成の要素関数定義 ---
+        function placeRiverTile(x, z) {
+            gridMap[x][z].type = 'water';
+            const waterGeo = new THREE.BoxGeometry(TILE_SIZE, 0.1, TILE_SIZE);
+            const waterMat = new THREE.MeshStandardMaterial({
+                color: COLORS.water,
+                roughness: 0.15,
+                metalness: 0.75
+            });
+            const water = new THREE.Mesh(waterGeo, waterMat);
+            const pos = getGridWorldCoords(x, z);
+            water.position.set(pos.x, 0.05, pos.z);
+            scene.add(water);
+            gridMap[x][z].mesh = water;
+        }
+
+        function placeMountainObstacle(x, z) {
+            gridMap[x][z].type = 'mountain';
+            const mGeo = new THREE.BoxGeometry(TILE_SIZE * 0.98, 1.8 + pseudoRandom() * 2.2, TILE_SIZE * 0.98);
+            const mMat = new THREE.MeshStandardMaterial({
+                color: COLORS.mountain,
+                roughness: 0.9,
+                metalness: 0.1
+            });
+            const mMesh = new THREE.Mesh(mGeo, mMat);
+            const pos = getGridWorldCoords(x, z);
+            mMesh.position.set(pos.x, mGeo.parameters.height / 2, pos.z);
+            mMesh.castShadow = true;
+            mMesh.receiveShadow = true;
+            scene.add(mMesh);
+            gridMap[x][z].mesh = mMesh;
+        }
+
+        function spawnNatureTree(x, z) {
+            const tree = new THREE.Group();
+            
+            const trunkGeo = new THREE.CylinderGeometry(0.12, 0.18, 0.8, 5);
+            const trunkMat = new THREE.MeshLambertMaterial({ color: COLORS.wood });
+            const trunk = new THREE.Mesh(trunkGeo, trunkMat);
+            trunk.position.y = 0.4;
+            trunk.castShadow = true;
+            tree.add(trunk);
+
+            const leavesGeo = new THREE.ConeGeometry(0.65, 1.3, 5);
+            const leavesMat = new THREE.MeshLambertMaterial({ color: 0x22541c });
+            const leaves = new THREE.Mesh(leavesGeo, leavesMat);
+            leaves.position.y = 1.35;
+            leaves.castShadow = true;
+            tree.add(leaves);
+
+            const pos = getGridWorldCoords(x, z);
+            tree.position.set(
+                pos.x + (pseudoRandom() - 0.5) * 1.6,
+                0,
+                pos.z + (pseudoRandom() - 0.5) * 1.6
+            );
+
+            scene.add(tree);
+            gridMap[x][z].metadata.naturalDecoration = tree;
+        }
+
+        // --- 地形生成メイン ---
+        function clearExistingMapEntities() {
+            if (gridMap && gridMap.length > 0) {
+                for (let x = 0; x < GRID_SIZE; x++) {
+                    for (let z = 0; z < GRID_SIZE; z++) {
+                        const tile = gridMap[x]?.[z];
+                        if (tile) {
+                            if (tile.mesh) scene.remove(tile.mesh);
+                            if (tile.metadata && tile.metadata.naturalDecoration) {
+                                scene.remove(tile.metadata.naturalDecoration);
+                            }
+                        }
+                    }
+                }
+            }
+
+            buildingsMap.forEach(b => {
+                if (b.mesh) scene.remove(b.mesh);
+            });
+            buildingsMap = [];
+
+            trains.forEach(t => {
+                if (t.spawnGroup) scene.remove(t.spawnGroup);
+            });
+            trains = [];
+            followTrainIndex = -1;
+            const status = document.getElementById('follow-status');
+            if (status) status.innerText = "車窓";
+
+            gridMap = [];
+            for (let x = 0; x < GRID_SIZE; x++) {
+                gridMap[x] = [];
+                for (let z = 0; z < GRID_SIZE; z++) {
+                    gridMap[x][z] = { type: 'empty', mesh: null, metadata: {} };
+                }
+            }
+        }
+
+        function buildMapProceduralTerrain() {
+            clearExistingMapEntities();
+            pseudoRandom = seedRandom(mapSeed);
+
+            // 川の流れ（正弦波ノイズ）
+            const rOffset = pseudoRandom() * 8 + 4;
+            const rPeriod = pseudoRandom() * 0.15 + 0.1;
+            for (let x = 0; x < GRID_SIZE; x++) {
+                const z = Math.floor(Math.sin(x * rPeriod) * rOffset + (GRID_SIZE / 2));
+                if (z >= 0 && z < GRID_SIZE) {
+                    placeRiverTile(x, z);
+                }
+            }
+
+            // 起伏、森林ブロック
+            for (let x = 0; x < GRID_SIZE; x++) {
+                for (let z = 0; z < GRID_SIZE; z++) {
+                    if (gridMap[x]?.[z] && gridMap[x][z].type === 'empty') {
+                        const noiseVal1 = Math.sin(x * 0.3) * Math.cos(z * 0.3);
+                        const noiseVal2 = Math.cos(x * 0.1) * Math.sin(z * 0.1);
+
+                        if (noiseVal1 > 0.62 && pseudoRandom() > 0.35) {
+                            placeMountainObstacle(x, z);
+                        }
+                        else if (noiseVal2 > 0.4 && pseudoRandom() > 0.2) {
+                            spawnNatureTree(x, z);
+                        }
+                    }
+                }
+            }
+
+            logNewsFeed(`[SEED:${mapSeed}] 新しい地形シードがロードされました。`, "text-amber-400");
+        }
+
+        function regenerateWithInputSeed() {
+            const inputVal = document.getElementById('seed-input');
+            if (!inputVal) return;
+            const val = parseInt(inputVal.value);
+            if (!isNaN(val)) {
+                mapSeed = val;
+                buildMapProceduralTerrain();
+                funds = 6000000;
+                bankLoan = 0;
+                population = 0;
+                totalBuiltCost = 0;
+                totalRevenue = 0;
+                totalMaintenance = 0;
+                updateStatsUI();
+            }
+        }
+
+        function restartGame() {
+            mapSeed = Math.floor(Math.random() * 89999 + 10000);
+            const sInput = document.getElementById('seed-input');
+            if (sInput) sInput.value = mapSeed;
+            const overlay = document.getElementById('gameover-overlay');
+            if (overlay) overlay.classList.add('hidden');
+            regenerateWithInputSeed();
+        }
+
+        // --- 帝国銀行ローン窓口 ---
+        function borrowLoan() {
+            initAudio();
+            if (bankLoan >= 25000000) {
+                logNewsFeed("借入限度額の上限に達しています (上限: ¥25,000,000)。", "text-rose-400");
+                return;
+            }
+            bankLoan += 5000000;
+            funds += 5000000;
+            playSoundStationChime();
+            updateStatsUI();
+            logNewsFeed("帝国銀行から ¥5,000,000 を調達しました (年利 5.0%)。", "text-amber-300");
+        }
+
+        function repayLoan() {
+            initAudio();
+            if (bankLoan <= 0) {
+                logNewsFeed("借入金残高はありません。", "text-emerald-400");
+                return;
+            }
+            if (funds < 5000000) {
+                logNewsFeed("返済に必要な自己資金が不足しています。", "text-rose-400");
+                return;
+            }
+            bankLoan -= 5000000;
+            funds -= 5000000;
+            playSoundBuildChirp();
+            updateStatsUI();
+            logNewsFeed("借入金 ¥5,000,000 を早期償還しました。", "text-emerald-300");
+        }
+
+        // --- 車両編成切り替えハンドラー ---
+        function setTrainCars(num) {
+            configTrainCars = num;
+            COSTS.spawn_train = TRAIN_PRESETS[num].cost;
+
+            for (let i = 1; i <= 4; i++) {
+                const btn = document.getElementById(`btn-cars-${i}`);
+                if (btn) {
+                    if (i === num) {
+                        btn.className = "py-1.5 rounded bg-blue-600 text-xs font-bold text-white border border-blue-500 hover:bg-blue-500 transition-all";
+                    } else {
+                        btn.className = "py-1.5 rounded bg-slate-800 text-xs font-bold text-slate-300 border border-slate-700 hover:bg-slate-700 transition-all";
+                    }
+                }
+            }
+
+            const costLabel = document.getElementById('lbl-train-cost');
+            if (costLabel) costLabel.innerText = `¥${TRAIN_PRESETS[num].cost.toLocaleString()}`;
+            
+            const capacityLabel = document.getElementById('lbl-train-capacity');
+            if (capacityLabel) capacityLabel.innerText = TRAIN_PRESETS[num].capacityLabel;
+            
+            const spawnBtnCost = document.getElementById('lbl-spawn-btn-cost');
+            if (spawnBtnCost) spawnBtnCost.innerText = `¥${TRAIN_PRESETS[num].cost.toLocaleString()}`;
+            
+            playSoundBuildChirp();
+        }
+
+        // --- アニメーションループ ---
+        function animateScene() {
+            requestAnimationFrame(animateScene);
+
+            handleRunningTrainsPhysics();
+            updateSolarLightSystem();
+
+            if (followTrainIndex !== -1 && trains[followTrainIndex]) {
+                const trainObj = trains[followTrainIndex];
+                const leadCarMesh = trainObj.carMeshes[0];
+                const trainPos = leadCarMesh.position;
+
+                const offsetDir = DIR_OFFSETS[trainObj.outDir];
+
+                const lookOffsetX = trainPos.x - offsetDir.dCol * 13 + 7;
+                const lookOffsetZ = trainPos.z - offsetDir.dRow * 13 + 7;
+                const lookOffsetY = 8.0;
+
+                camera.position.set(lookOffsetX, lookOffsetY, lookOffsetZ);
+                camera.lookAt(trainPos.x, 1.2, trainPos.z);
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        function onWindowResize() {
+            if (!container) return;
+            const aspect = container.clientWidth / container.clientHeight;
+            const scale = 32;
+            camera.left = -scale * aspect;
+            camera.right = scale * aspect;
+            camera.top = scale;
+            camera.bottom = -scale;
+            camera.updateProjectionMatrix();
+            renderer.setSize(container.clientWidth, container.clientHeight);
+        }
+
+        // --- Window Onload 一括初期化 ---
+        window.onload = function() {
+            initGame();
+            buildMapProceduralTerrain();
+            setTrainCars(3); 
+        };
+    </script>
+</body>
+</html>
