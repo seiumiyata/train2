@@ -96,7 +96,8 @@
         <div class="flex items-center space-x-1 bg-slate-950/80 p-1 rounded-lg border border-slate-800">
             <button id="speed-0" class="px-2.5 py-1 rounded text-xs transition-all font-bold text-slate-400 hover:text-white" onclick="setSpeed(0)">一時停止</button>
             <button id="speed-1" class="px-2.5 py-1 rounded text-xs transition-all font-bold bg-blue-600 text-white" onclick="setSpeed(1)">1x</button>
-            <button id="speed-2" class="px-2.5 py-1 rounded text-xs transition-all font-bold text-slate-400 hover:text-white" onclick="setSpeed(3)">3x</button>
+            <button id="speed-3" class="px-2.5 py-1 rounded text-xs transition-all font-bold text-slate-400 hover:text-white" onclick="setSpeed(3)">3x</button>
+            <button id="speed-9" class="px-2.5 py-1 rounded text-xs transition-all font-bold text-slate-400 hover:text-white" onclick="setSpeed(9)">9x</button>
         </div>
     </div>
 
@@ -117,11 +118,11 @@
             </div>
             <div class="flex justify-between text-[11px] font-mono mt-1">
                 <span class="text-slate-400">車両価格:</span>
-                <span id="lbl-train-cost" class="text-emerald-400 font-bold">¥4,500,000</span>
+                <span id="lbl-train-cost" class="text-emerald-400 font-bold">¥2,500,000</span>
             </div>
             <div class="flex justify-between text-[11px] font-mono">
                 <span class="text-slate-400">乗車許容量:</span>
-                <span id="lbl-train-capacity" class="text-sky-400 font-bold">中（運賃 2.5倍）</span>
+                <span id="lbl-train-capacity" class="text-sky-400 font-bold">中（運賃 3.5倍）</span>
             </div>
         </div>
 
@@ -137,7 +138,7 @@
                 <span class="text-2xl mb-1">🛠️✨</span>
                 <span class="text-xs font-bold text-blue-300">スマート自動線路敷設</span>
                 <span class="text-[10px] text-slate-400 mt-1">ドラッグで精密な円弧を描いてレールが自動接続します。</span>
-                <span class="text-[10px] text-emerald-400 font-mono font-bold mt-0.5">1マス: ¥120,000</span>
+                <span class="text-[10px] text-emerald-400 font-mono font-bold mt-0.5">1マス: ¥40,000</span>
             </button>
 
             <!-- 建築メニュー -->
@@ -147,20 +148,20 @@
                     <span class="text-xl mb-0.5">🚉✨</span>
                     <span class="text-xs font-bold text-slate-100">駅を新設</span>
                     <span class="text-[9px] text-slate-400">線路上に直接重ねるだけで、自動接続アライメント！</span>
-                    <span class="text-[9px] text-emerald-400 font-mono mt-0.5">¥3,500,000</span>
+                    <span class="text-[9px] text-emerald-400 font-mono mt-0.5">¥1,500,000</span>
                 </button>
 
                 <!-- 列車を線路に配置 -->
                 <button id="tool-spawn_train" onclick="selectTool('spawn_train')" class="col-span-2 flex flex-col items-center justify-center p-2 rounded-lg bg-amber-950/30 border border-amber-800 hover:bg-amber-900/40 transition-all text-center text-amber-300">
                     <span class="text-lg mb-0.5">🚋💨</span>
                     <span class="text-xs font-semibold">列車を配置</span>
-                    <span class="text-[9px] text-amber-400 font-mono mt-0.5" id="lbl-spawn-btn-cost">¥4,500,000</span>
+                    <span class="text-[9px] text-amber-400 font-mono mt-0.5" id="lbl-spawn-btn-cost">¥2,500,000</span>
                 </button>
                 <!-- 撤去ブルドーザー -->
                 <button id="tool-clear" onclick="selectTool('clear')" class="col-span-1 flex flex-col items-center justify-center p-2 rounded-lg bg-rose-950/30 border border-rose-950 hover:bg-rose-900/40 transition-all text-center text-rose-300">
                     <span class="text-lg mb-0.5">🚜</span>
                     <span class="text-xs font-semibold">撤去</span>
-                    <span class="text-[9px] text-rose-400 font-mono mt-0.5">¥50k</span>
+                    <span class="text-[9px] text-rose-400 font-mono mt-0.5">¥10k</span>
                 </button>
             </div>
         </div>
@@ -205,7 +206,7 @@
         <div class="bg-slate-900/95 backdrop-blur-md border border-slate-800 rounded-xl p-4 shadow-2xl flex flex-col gap-2.5">
             <div class="flex justify-between items-center border-b border-slate-800 pb-1.5">
                 <h3 class="text-xs font-bold tracking-wider text-slate-400">帝国銀行 融資窓口</h3>
-                <span class="text-[9px] bg-red-500/10 text-red-400 px-1.5 py-0.5 rounded border border-red-500/20">金利年5%</span>
+                <span class="text-[9px] bg-red-500/10 text-red-400 px-1.5 py-0.5 rounded border border-red-500/20">金利年2%</span>
             </div>
             <div class="flex justify-between text-xs font-mono">
                 <span class="text-slate-400">現在の借入総額:</span>
@@ -309,13 +310,13 @@
         let demandC = 40;
         let demandO = 30;
 
-        // 車両購入プリセット
+        // 車両購入プリセット（価格の低価格化と運賃倍率の超上方修正）
         let configTrainCars = 3; 
         const TRAIN_PRESETS = {
-            1: { cost: 2000000, capacityLabel: "極小（運賃 1.0倍）", factor: 1.0 },
-            2: { cost: 3500000, capacityLabel: "小（運賃 1.8倍）", factor: 1.8 },
-            3: { cost: 4500000, capacityLabel: "中（運賃 2.5倍）", factor: 2.5 },
-            4: { cost: 5800000, capacityLabel: "大（運賃 3.4倍）", factor: 3.4 }
+            1: { cost: 1000000, capacityLabel: "極小（運賃 1.2倍）", factor: 1.2 },
+            2: { cost: 1800000, capacityLabel: "小（運賃 2.2倍）", factor: 2.2 },
+            3: { cost: 2500000, capacityLabel: "中（運賃 3.5倍）", factor: 3.5 },
+            4: { cost: 3200000, capacityLabel: "大（運賃 5.0倍）", factor: 5.0 }
         };
 
         // 財務累計
@@ -349,12 +350,12 @@
         // シンセサイザー音響
         let audioCtx = null;
 
-        // シビアな財務チューニング
+        // シビアな財務チューニング（低価格化調整）
         const COSTS = {
-            auto_track: 120000,   // 線路1マス ¥120,000
-            station: 3500000,     // 駅新設 ¥3,500,000
-            spawn_train: 4500000, 
-            clear: 50000          // 撤去費
+            auto_track: 40000,    // 線路1マス ¥40,000 (従来の3分の1)
+            station: 1500000,     // 駅新設 ¥1,500,000 (半額以下)
+            spawn_train: 2500000, 
+            clear: 10000          // 撤去費 ¥10,000 (5分の1)
         };
 
         // カメラパラメータ
@@ -546,6 +547,44 @@
             return null;
         }
 
+        // --- 地形生成メイン ---
+        function clearExistingMapEntities() {
+            if (gridMap && gridMap.length > 0) {
+                for (let x = 0; x < GRID_SIZE; x++) {
+                    for (let z = 0; z < GRID_SIZE; z++) {
+                        const tile = gridMap[x]?.[z];
+                        if (tile) {
+                            if (tile.mesh) scene.remove(tile.mesh);
+                            if (tile.metadata && tile.metadata.naturalDecoration) {
+                                scene.remove(tile.metadata.naturalDecoration);
+                            }
+                        }
+                    }
+                }
+            }
+
+            buildingsMap.forEach(b => {
+                if (b.mesh) scene.remove(b.mesh);
+            });
+            buildingsMap = [];
+
+            trains.forEach(t => {
+                if (t.spawnGroup) scene.remove(t.spawnGroup);
+            });
+            trains = [];
+            followTrainIndex = -1;
+            const status = document.getElementById('follow-status');
+            if (status) status.innerText = "車窓";
+
+            gridMap = [];
+            for (let x = 0; x < GRID_SIZE; x++) {
+                gridMap[x] = [];
+                for (let z = 0; z < GRID_SIZE; z++) {
+                    gridMap[x][z] = { type: 'empty', mesh: null, metadata: {} };
+                }
+            }
+        }
+
         function isTrackOrStation(type) {
             if (!type) return false;
             return type.startsWith('track_') || type.startsWith('curve_') || type.startsWith('station_');
@@ -689,7 +728,6 @@
 
             scene = new THREE.Scene();
             scene.background = new THREE.Color(COLORS.sky_day);
-            // デバッグ対策: FogExp2 の密度を 0.009 から視界良好な 0.0025 に最適化。
             scene.fog = new THREE.FogExp2(COLORS.sky_day, 0.0025);
 
             const width = container.clientWidth || window.innerWidth;
@@ -751,7 +789,7 @@
 
             setupCameraManipulations();
 
-            // デバッグ対策: マウス・タッチイベントリスナーの確実なバインディング
+            // イベントリスナーのバインディング
             container.addEventListener('mousemove', onMouseMove);
             container.addEventListener('mousedown', onMouseDown);
             window.addEventListener('mouseup', onMouseUp);
@@ -784,7 +822,6 @@
 
         function setupCameraManipulations() {
             container.addEventListener('mousedown', (e) => {
-                // 右クリック(2)または施工ツール未選択時(null)にドラッグカメラ回転を有効化
                 if (e.button === 2 || !selectedTool) {
                     isDraggingCamera = true;
                     previousMousePosition = { x: e.clientX, y: e.clientY };
@@ -1527,19 +1564,20 @@
                         // 駅での停車判定
                         if (currentTile.type.startsWith('station_')) {
                             const countLocalCivs = queryCivDensityNear(t.col, t.row, 5);
-                            const baseFare = (countLocalCivs * 35) + (pseudoRandom() * 2500); 
+                            // 基本運賃係数を 35 -> 150 に上方修正
+                            const baseFare = (countLocalCivs * 150) + (pseudoRandom() * 4000 + 1000); 
 
-                            // 運行ダイヤ：夜間ダイヤ（20時〜6時）は運賃半減
+                            // 運行ダイヤ：夜間ダイヤ（20時〜6時）は運賃20%減（0.8倍）に変更（以前の50%減から大幅緩和）
                             const isNightTime = (gameHour >= 20 || gameHour < 6);
-                            const diaMultiplier = isNightTime ? 0.5 : 1.0;
+                            const diaMultiplier = isNightTime ? 0.8 : 1.0;
 
-                            const fareEarning = Math.floor(baseFare * t.capacityFactor * (demandR / 50) * diaMultiplier);
+                            const fareEarning = Math.floor(baseFare * t.capacityFactor * (demandR / 40) * diaMultiplier);
 
                             if (fareEarning > 0) {
                                 funds += fareEarning;
                                 totalRevenue += fareEarning;
                                 updateStatsUI();
-                                const diaText = isNightTime ? "【夜間ダイヤ50%】" : "【昼間ダイヤ】";
+                                const diaText = isNightTime ? "【夜間ダイヤ80%】" : "【昼間ダイヤ】";
                                 logNewsFeed(`${diaText} 第 ${t.id} 列車 運賃収入: +¥${fareEarning.toLocaleString()}`, "text-emerald-300");
                                 playSoundStationChime();
 
@@ -1910,13 +1948,15 @@
 
             let trainMaintenanceSum = 0;
             trains.forEach(t => {
-                trainMaintenanceSum += 22000 + (t.carCount * 6500);
+                // 運行中の列車維持費を大幅削減 (22000 + t.carCount * 6500) -> (5000 + t.carCount * 1500)
+                trainMaintenanceSum += 5000 + (t.carCount * 1500);
             });
 
-            // 借入金に対する利息年利5%
-            const dailyLoanInterest = Math.floor(bankLoan * (0.05 / 360));
+            // 借入金に対する利息を年利2%に大幅引き下げ
+            const dailyLoanInterest = Math.floor(bankLoan * (0.02 / 360));
 
-            const activeMaintenance = (counts * 4500) + trainMaintenanceSum + dailyLoanInterest;
+            // インフラマス当たりの日次保守費を ¥4,500 から ¥1,000 へ引き下げ
+            const activeMaintenance = (counts * 1000) + trainMaintenanceSum + dailyLoanInterest;
             
             funds -= activeMaintenance;
             totalMaintenance += activeMaintenance;
@@ -1968,8 +2008,7 @@
             document.querySelectorAll('button[id^="speed-"]').forEach(btn => {
                 btn.className = "px-2.5 py-1 rounded text-xs transition-all font-bold text-slate-400 hover:text-white";
             });
-            const identifier = scale === 0 ? '0' : scale === 1 ? '1' : '2';
-            const targetBtn = document.getElementById(`speed-${identifier}`);
+            const targetBtn = document.getElementById(`speed-${scale}`);
             if (targetBtn) {
                 targetBtn.className = "px-2.5 py-1 rounded text-xs transition-all font-bold bg-blue-600 text-white";
             }
@@ -2049,44 +2088,6 @@
             gridMap[x][z].metadata.naturalDecoration = tree;
         }
 
-        // --- 地形生成メイン ---
-        function clearExistingMapEntities() {
-            if (gridMap && gridMap.length > 0) {
-                for (let x = 0; x < GRID_SIZE; x++) {
-                    for (let z = 0; z < GRID_SIZE; z++) {
-                        const tile = gridMap[x]?.[z];
-                        if (tile) {
-                            if (tile.mesh) scene.remove(tile.mesh);
-                            if (tile.metadata && tile.metadata.naturalDecoration) {
-                                scene.remove(tile.metadata.naturalDecoration);
-                            }
-                        }
-                    }
-                }
-            }
-
-            buildingsMap.forEach(b => {
-                if (b.mesh) scene.remove(b.mesh);
-            });
-            buildingsMap = [];
-
-            trains.forEach(t => {
-                if (t.spawnGroup) scene.remove(t.spawnGroup);
-            });
-            trains = [];
-            followTrainIndex = -1;
-            const status = document.getElementById('follow-status');
-            if (status) status.innerText = "車窓";
-
-            gridMap = [];
-            for (let x = 0; x < GRID_SIZE; x++) {
-                gridMap[x] = [];
-                for (let z = 0; z < GRID_SIZE; z++) {
-                    gridMap[x][z] = { type: 'empty', mesh: null, metadata: {} };
-                }
-            }
-        }
-
         function buildMapProceduralTerrain() {
             clearExistingMapEntities();
             pseudoRandom = seedRandom(mapSeed);
@@ -2158,7 +2159,7 @@
             funds += 5000000;
             playSoundStationChime();
             updateStatsUI();
-            logNewsFeed("帝国銀行から ¥5,000,000 を調達しました (年利 5.0%)。", "text-amber-300");
+            logNewsFeed("帝国銀行から ¥5,000,000 を調達しました (年利 2.0%)。", "text-amber-300");
         }
 
         function repayLoan() {
